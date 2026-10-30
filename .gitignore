@@ -1,0 +1,14 @@
+node_modules/
+.turbo/
+dist/
+.expo/
+coverage/
+.env
+.env.*
+!.env.example
+*.local
+.DS_Store
+apps/mobile/ios/
+apps/mobile/android/
+test-results/
+playwright-report/

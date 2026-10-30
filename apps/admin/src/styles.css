@@ -1,0 +1,24 @@
+body {
+  background: var(--background);
+  color: var(--text);
+  font-family: system-ui;
+  margin: 0;
+}
+main {
+  max-width: 900px;
+  padding: 40px;
+  margin: auto;
+}
+.empty-state {
+  padding: 40px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  margin-top: 60px;
+}
+p {
+  color: var(--muted);
+  line-height: 1.7;
+}
+.eyebrow {
+  color: var(--primary);
+}

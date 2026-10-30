@@ -1,0 +1,21 @@
+{
+  "name": "@virel/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "start": "bun src/index.ts",
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "elysia": "^1.4.28",
+    "convex": "^1.46.0",
+    "@virel/backend": "workspace:*",
+    "@sinclair/typebox": "^0.34.0"
+  },
+  "devDependencies": {
+    "@virel/config": "workspace:*"
+  }
+}

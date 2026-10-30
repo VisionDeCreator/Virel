@@ -1,0 +1,32 @@
+{
+  "name": "virel",
+  "private": true,
+  "version": "0.0.0",
+  "packageManager": "bun@1.3.14",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev --filter=@virel/web --filter=@virel/api",
+    "dev:web": "bun run --cwd apps/web dev",
+    "dev:admin": "bun run --cwd apps/admin dev",
+    "dev:mobile": "bun run --cwd apps/mobile dev",
+    "dev:api": "bun run --cwd apps/api dev",
+    "dev:convex": "bun run --cwd packages/backend dev",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test:web": "playwright test"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "turbo": "^2.5.4",
+    "prettier": "^3.6.2",
+    "vitest": "^4.0.0",
+    "@types/bun": "^1.3.0",
+    "@playwright/test": "^1.56.0"
+  }
+}

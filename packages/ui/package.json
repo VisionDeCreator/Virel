@@ -1,0 +1,22 @@
+{
+  "name": "@virel/ui",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@virel/design-tokens": "workspace:*"
+  },
+  "devDependencies": {
+    "@virel/config": "workspace:*",
+    "@types/react": "~19.3.0"
+  },
+  "exports": {
+    ".": "./src/index.tsx"
+  },
+  "peerDependencies": {
+    "react": ">=19"
+  }
+}

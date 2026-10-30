@@ -1,0 +1,6 @@
+node_modules
+dist
+bun.lock
+.expo
+.turbo
+packages/backend/convex/_generated

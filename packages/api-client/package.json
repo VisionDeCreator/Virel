@@ -1,0 +1,25 @@
+{
+  "name": "@virel/api-client",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "convex": "^1.46.0",
+    "@convex-dev/auth": "^0.0.95",
+    "@virel/backend": "workspace:*"
+  },
+  "devDependencies": {
+    "@virel/config": "workspace:*",
+    "@types/react": "~19.3.0"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./provider": "./src/provider.tsx"
+  },
+  "peerDependencies": {
+    "react": ">=19"
+  }
+}
