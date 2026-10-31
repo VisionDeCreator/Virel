@@ -1,4 +1,7 @@
 {
   "extends": "@virel/config/tsconfig.base.json",
-  "include": ["src", "test", "convex"]
+  "include": ["src", "test", "convex", "scripts"],
+  "compilerOptions": {
+    "types": ["bun"]
+  }
 }

@@ -55,7 +55,11 @@ function Navigation() {
 }
 export default function Layout() {
   return client ? (
-    <BackendProvider client={client} storage={authStorage}>
+    <BackendProvider
+      client={client}
+      storage={authStorage}
+      apiUrl={process.env.EXPO_PUBLIC_API_URL}
+    >
       <Navigation />
     </BackendProvider>
   ) : (

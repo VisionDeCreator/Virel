@@ -1,6 +1,6 @@
 # Virel
 
-AI video discovery and remix platform. The initial foundation includes a Bun workspace, web and admin shells, an Expo mobile app, a Bun API, and Convex profile/feed functions. Generation, purchases, royalties, and payouts are not enabled.
+AI video discovery and remix platform. The initial foundation includes a Bun workspace, web and admin shells, an Expo mobile app, a Bun API, and Convex profile/feed functions. Studio generation and R2 media workflows are implemented; server configuration and live acceptance remain required. Purchases and payouts are not enabled.
 
 ## Requirements
 
@@ -15,7 +15,7 @@ bun install
 bun run dev
 ```
 
-Web runs on http://localhost:5173 and the API on http://localhost:3001. Without Convex configuration, web and mobile show an explicit setup state. Admin runs separately with `bun run dev:admin` on port 5174.
+Web runs on http://localhost:5173 and the API on http://localhost:3101. Without Convex configuration, web and mobile show an explicit setup state. Admin runs separately with `bun run dev:admin` on port 5174.
 
 ## Connect the backend
 
@@ -66,7 +66,7 @@ Applications live in `apps/`, shared packages in `packages/`, and environment gu
 
 ## Approved visual direction and client connection
 
-The feed, studio, and profile use the approved matte orange/ivory/dark visual system. See [style guide](docs/design/style-guide.md). Unconfigured clients display labeled concept previews. Generation is not enabled; prompt controls do not submit jobs or charge credits.
+The feed, studio, and profile use the approved matte orange/ivory/dark visual system. See [style guide](docs/design/style-guide.md). Unconfigured clients display labeled concept previews. Signed-in Studio has Create (Seedance 2.5 with optional images/video) and Remix (required source video), a single script per mode with autosave/history, linked @ references, drag-and-drop uploads, credit quotes, asynchronous generation, private previews, revisions, downloads, and explicit publishing once its server integrations are configured.
 
 Once the intended Convex deployment is configured in `packages/backend/.env.local`, run `bun run setup:clients` to populate the public backend URL in web, native, and API environment files. Existing unrelated keys are retained. Restart running services afterward. This command does not provision a deployment, set auth keys, or upload source. All four environment files are ignored by Git.
 
@@ -76,8 +76,20 @@ Email/password authentication is configured on the Virel development deployment.
 
 Authentication keys live in Convex environment configuration, never client variables. SITE_URL currently points to http://localhost:5173 for local development. Password recovery, email verification, Google/Apple login, and physical native-device authentication validation remain separate work.
 
-## Planned Remix server configuration
+## Studio server configuration
 
-The root `.env.example` lists planned R2, rendering, optional vision, and service-authentication settings. Empty placeholders are also provided in the ignored root `.env` and API `.env`; existing local values are preserved. The API's service-local `.env.example` mirrors these placeholders. Bun API development runs from `apps/api`, so populate `apps/api/.env` for that service; the root file is a configuration inventory, not an automatic source for every service.
+Fill in the ignored root `.env` using `.env.example`: `CONVEX_URL`, a Virel development `CONVEX_DEPLOY_KEY`, `API_PUBLIC_URL`, private R2 credentials/bucket, and `SUME_API_KEY`/`SUME_BASE_URL`. API and worker processes load this file locally; production uses hosting secrets. Credentials are never copied into Convex or client variables. The same private bucket stores uploads, references, and generated outputs.
 
-Keep credentials in ignored server environment files or deployment secret settings. Never use `VITE_` or `EXPO_PUBLIC_` prefixes for secrets. When the media worker is implemented, supply only its required settings in its own ignored environment file. Convex deployment secrets must be configured through Convex environment settings separately. These placeholders do not enable generation or storage integrations. Google video analysis is deferred.
+`bun run setup:studio` validates required settings without syncing credentials or changing bucket CORS. `bun run check:studio-storage` tests signed uploads, immutable copies, range reads, and configured browser origins using temporary objects. Configure R2 CORS in Cloudflare for the exact `STUDIO_WEB_ORIGINS`, including the development port in use.
+
+Deploy database/functions with `bun run dev:convex --once`. Run `bun run dev` for web, API, and the worker, or `bun run dev:api` and `bun run dev:worker` separately. Web uses `VITE_API_URL`; mobile uses `EXPO_PUBLIC_API_URL`. Set mobile's API URL to a device-accessible host for physical devices. Restart clients after environment changes. See [Studio implementation](docs/studio-implementation.md).
+
+Pricing uses a free supplier quote with a 5% supplier headroom, `CREDITS_PER_USD=100`, and `GENERATION_MARKUP_BPS=3000` by default. Users approve a fixed credit cost before submission. `WELCOME_CREDITS=100` grants promotional credits once per account when Studio opens; set it to `0` to disable new allocations. Promotional generations do not earn royalties. Paid credit purchases are not implemented.
+
+Published videos use a stable API media endpoint that checks Convex publication state and redirects to a five-minute signed R2 URL. The bucket stays private. Unpublishing blocks new delivery links and remixes; existing signed links expire within five minutes. Private previews and provider source links expire after one hour.
+
+No Google analysis is integrated. `DEEPSEEK_API_KEY` is reserved for a later optional analysis integration and is not consumed by this implementation. Storage and provider work run in the Bun API/worker. Convex holds durable leased tasks, metadata, and transactional credits. Legacy Convex media links redirect to the API using the non-secret `API_PUBLIC_URL` setting.
+
+### Optional media Worker settings
+
+Empty `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_ZONE_ID`, and `MEDIA_DOMAIN` placeholders are provided in the root environment files for a future Cloudflare media Worker deployment. They are not required by the current signed-redirect playback implementation and are not synced to Convex by `setup:studio`. Adding a domain to R2 CORS only allows requests from that web origin; it does not create a Worker or configure a media hostname. `STUDIO_WEB_ORIGINS` should include the actual web app origins, including the development port in use.

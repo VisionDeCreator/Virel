@@ -6,20 +6,20 @@ Virel connects video discovery, AI generation, remixing, and creator royalties. 
 
 ## Approved stack
 
-| Area              | Choice                                                                                 |
-| ----------------- | -------------------------------------------------------------------------------------- |
-| Language          | TypeScript                                                                             |
-| Workspace tooling | Bun workspaces and Turborepo                                                           |
-| Web               | React, Vite, React Router, Tailwind CSS, shadcn/ui                                     |
-| Mobile            | React Native, Expo, Expo Router                                                        |
-| Administration    | Separate React web application                                                         |
-| API service       | Bun; HTTP framework remains open                                                       |
-| Backend           | Convex database, queries, mutations, actions, and real-time subscriptions              |
-| Authentication    | Convex Auth, subject to web and mobile validation                                      |
-| Job orchestration | Convex Workflow and Workpool                                                           |
-| Dedicated workers | Bun services when workloads require them                                               |
-| Media             | Cloudflare Stream for playback and R2 for originals, subject to integration evaluation |
-| Testing           | Vitest, convex-test, and Playwright; native end-to-end tool remains open               |
+| Area              | Choice                                                                          |
+| ----------------- | ------------------------------------------------------------------------------- |
+| Language          | TypeScript                                                                      |
+| Workspace tooling | Bun workspaces and Turborepo                                                    |
+| Web               | React, Vite, React Router, Tailwind CSS, shadcn/ui                              |
+| Mobile            | React Native, Expo, Expo Router                                                 |
+| Administration    | Separate React web application                                                  |
+| API service       | Bun and Elysia                                                                  |
+| Backend           | Convex database, queries, mutations, actions, and real-time subscriptions       |
+| Authentication    | Convex Auth, subject to web and mobile validation                               |
+| Job orchestration | Durable Convex tasks executed by the Bun worker                                 |
+| Dedicated workers | Bun services when workloads require them                                        |
+| Media             | Private Cloudflare R2 for all media; Convex-authorized signed playback delivery |
+| Testing           | Vitest, convex-test, and Playwright; native end-to-end tool remains open        |
 
 Bun replaces pnpm for dependency management, scripts, utilities, and dedicated API and worker execution. Browser code runs in the browser, native mobile code in the mobile JavaScript engine, and Convex functions in Convex-supported runtimes. Expo tooling may still require Node.js LTS for specific commands. Shared client packages must avoid Bun-only APIs.
 
@@ -67,15 +67,15 @@ Client imports from backend must expose generated API references and safe types 
 
 ## Service ownership
 
-| Component             | Owns                                                                                                          |
-| --------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Web and mobile        | Presentation, playback, authenticated requests, local interaction state                                       |
-| Admin                 | Moderation and operations interfaces; backend authorization remains mandatory                                 |
-| Bun API               | Integration endpoints, verified provider webhooks, ingestion coordination, worker communication               |
-| Convex                | Identity integration, profiles, authorization, social data, job state, lineage, credit and royalty settlement |
-| Workflow and Workpool | Durable coordination, bounded concurrency, retry scheduling, recovery                                         |
-| Bun workers           | Dedicated media processing and work unsuitable for managed action execution                                   |
-| Stream and R2         | Playback media and durable source assets respectively                                                         |
+| Component                   | Owns                                                                                                          |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Web and mobile              | Presentation, playback, authenticated requests, local interaction state                                       |
+| Admin                       | Moderation and operations interfaces; backend authorization remains mandatory                                 |
+| Bun API                     | Integration endpoints, verified provider webhooks, ingestion coordination, worker communication               |
+| Convex                      | Identity integration, profiles, authorization, social data, job state, lineage, credit and royalty settlement |
+| Convex tasks and Bun worker | Durable claims, bounded execution, retry scheduling, recovery                                                 |
+| Bun workers                 | Provider submission/polling, media processing, ingestion, and cleanup                                         |
+| R2                          | Private durable media assets, signed uploads, and authorized playback delivery                                |
 
 Clients call Convex directly for reactive application data and the Bun API for integration operations. Do not proxy every Convex request through the API. Convex auth callback routes remain with the auth integration; each external webhook has exactly one configured owner. Provider adapters execute server-side near their orchestration, with shared contracts preventing business rules from being duplicated across services.
 
@@ -151,7 +151,7 @@ Rich social previews and search indexing for public URLs need a server-rendering
 | Bun API framework          | Small service requirements and Bun compatibility evaluation                                       |
 | Convex Auth production use | Cross-platform login, recovery, linking, persistence, and revocation validation                   |
 | First AI provider          | Source-video transformation quality, input rights, costs, latency, safety, idempotency, callbacks |
-| Stream and R2 ingestion    | Private previews, export fidelity, provider input access, lifecycle and cost tests                |
+| R2 ingestion and delivery  | Private previews, export fidelity, provider input access, lifecycle and cost tests                |
 | Payments and payouts       | Business country, creator markets, provider eligibility, mobile purchase requirements             |
 | Web/API/worker hosting     | Deployment regions, persistent worker needs, operational cost                                     |
 | Public metadata rendering  | Sharing requirements and deployment approach                                                      |
@@ -166,3 +166,9 @@ Rich social previews and search indexing for public URLs need a server-rendering
 - [Convex actions and external calls](https://docs.convex.dev/functions/actions).
 - [Convex Workflow](https://www.convex.dev/components/workflow).
 - [Cloudflare video delivery](https://developers.cloudflare.com/use-cases/media-streaming/video-delivery/).
+
+## Studio implementation update — October 31, 2026
+
+Storage and generation use the Cinakey API/worker service boundary. The Bun API authenticates clients, signs direct R2 transfers, verifies uploads, prepares quotes, and publishes results. A separate Bun worker executes durable leased Convex tasks for provider submission, polling, R2 ingestion, and cleanup. Convex owns permissions, asset/script/job metadata, credit reservation and settlement, and real-time subscriptions. R2 and provider credentials exist only in API/worker server environments.
+
+All media lives in one private R2 bucket. Stable API playback routes verify current Convex publication status before issuing five-minute signed redirects. Legacy Convex URLs redirect to the API. Unknown submissions are reconciled rather than automatically resubmitted; worker lease checks fence stale state updates. See studio-implementation.md for operational details and live acceptance status.

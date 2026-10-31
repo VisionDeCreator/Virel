@@ -23,20 +23,27 @@ test("representative screens remain usable without a configured backend", async 
     page.getByRole("button", { name: "Create video", exact: true }),
   ).toBeDisabled();
   await page
-    .getByRole("textbox", { name: "Your prompt" })
+    .getByRole("textbox", { name: "Script" })
     .fill("A cinematic desert scene");
   await page.getByLabel("Duration", { exact: true }).selectOption("10");
   await page.getByLabel("Aspect ratio", { exact: true }).selectOption("16:9");
-  await expect(page.getByRole("textbox", { name: "Your prompt" })).toHaveValue(
+  await expect(page.getByRole("textbox", { name: "Script" })).toHaveValue(
     "A cinematic desert scene",
   );
-  await page
-    .getByRole("button", { name: "Image to video", exact: true })
-    .click();
-  await expect(page.getByLabel("Choose your starting image")).toBeVisible();
+  await expect(page.getByText("Model: Seedance 2.5")).toBeVisible();
+  await expect(
+    page.getByText("Optional images or reference video", { exact: true }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Remix", exact: true }).click();
   await expect(
     page.getByRole("textbox", { name: "What would you change?" }),
+  ).toHaveValue("");
+  await page
+    .getByRole("textbox", { name: "What would you change?" })
+    .fill("A remix draft");
+  await page.getByRole("button", { name: "Create", exact: true }).click();
+  await expect(
+    page.getByRole("textbox", { name: "Script", exact: true }),
   ).toHaveValue("A cinematic desert scene");
   const button = page.getByRole("button", {
     name: "Create video",
@@ -76,15 +83,12 @@ test("representative routes support direct loads without horizontal overflow", a
 
 test("image input rejects unsupported files", async ({ page }) => {
   await page.goto("/create");
-  await page
-    .getByRole("button", { name: "Image to video", exact: true })
-    .click();
   await page.locator('input[type="file"]').setInputFiles({
     name: "invalid.txt",
     mimeType: "text/plain",
     buffer: Buffer.from("not an image"),
   });
   await expect(page.getByRole("alert")).toHaveText(
-    "Choose a JPG, PNG, or WebP image under 10 MB.",
+    "Choose a JPG, PNG, WebP, MP4, MOV, or WebM file.",
   );
 });

@@ -10,17 +10,19 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "convex": "^1.46.0",
-    "@convex-dev/auth": "^0.0.95",
     "@auth/core": "^0.41.1",
-    "@virel/shared": "workspace:*"
+    "@convex-dev/auth": "^0.0.95",
+    "@convex-dev/workpool": "^0.4.15",
+    "@virel/shared": "workspace:*",
+    "convex": "^1.46.0"
   },
   "devDependencies": {
     "@virel/config": "workspace:*",
     "convex-test": "^0.0.41",
     "@edge-runtime/vm": "^5.0.0",
     "@types/node": "^24.0.0",
-    "vite": "^8.0.0"
+    "vite": "^8.0.0",
+    "@types/bun": "^1.3.0"
   },
   "exports": {
     ".": "./src/index.ts"

@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { Text } from "react-native";
+import { Text, View } from "react-native";
+import { Link } from "expo-router";
+import { colors } from "@virel/design-tokens";
 import {
   api,
   useQuery,
@@ -113,6 +115,7 @@ function Account() {
       ) : isAuthenticated ? (
         <>
           <Editor />
+          <PublishedVideos />
           <Button
             title="Sign out"
             onPress={() => {
@@ -201,5 +204,28 @@ export default function Profile() {
         </Text>
       </Panel>
     </Screen>
+  );
+}
+
+function PublishedVideos() {
+  const videos = useQuery(api.generation.myPublished);
+  return (
+    <Panel>
+      <Text style={styles.label}>Your published videos</Text>
+      {!videos?.length && (
+        <Text style={styles.text}>
+          Your originals and remixes will appear here.
+        </Text>
+      )}
+      {videos?.map((video) => (
+        <View key={video._id} style={{ gap: 8 }}>
+          <Text style={styles.label}>{video.title}</Text>
+          <Text style={styles.text}>{video.description}</Text>
+          <Link href={video.playbackUrl} style={{ color: colors.primary }}>
+            Watch video →
+          </Link>
+        </View>
+      ))}
+    </Panel>
   );
 }

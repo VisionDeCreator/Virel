@@ -49,6 +49,23 @@ function Feed() {
             <Text style={styles.label}>
               @{video.creator?.username ?? "creator"} · {video.title}
             </Text>
+            {video.rootCreator && (
+              <Text style={styles.text}>
+                Original by @{video.rootCreator.username}
+                {video.parentCreator &&
+                video.parentCreator._id !== video.rootCreator._id
+                  ? ` · Remixed from @${video.parentCreator.username}`
+                  : ""}
+              </Text>
+            )}
+            {video.remixEnabled && (
+              <Link
+                href={{ pathname: "/create", params: { source: video._id } }}
+                style={{ color: colors.primary }}
+              >
+                Remix video →
+              </Link>
+            )}
           </View>
         ))
       )}

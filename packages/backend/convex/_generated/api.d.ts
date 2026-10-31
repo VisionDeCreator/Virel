@@ -9,9 +9,20 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as credits from "../credits.js";
+import type * as crons from "../crons.js";
 import type * as feed from "../feed.js";
+import type * as generation from "../generation.js";
+import type * as generationActions from "../generationActions.js";
 import type * as http from "../http.js";
+import type * as media from "../media.js";
+import type * as mediaCleanup from "../mediaCleanup.js";
 import type * as profiles from "../profiles.js";
+import type * as serviceAuth from "../serviceAuth.js";
+import type * as studioAccess from "../studioAccess.js";
+import type * as studioScripts from "../studioScripts.js";
+import type * as studioValidators from "../studioValidators.js";
+import type * as tasks from "../tasks.js";
 
 import type {
   ApiFromModules,
@@ -21,9 +32,20 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  credits: typeof credits;
+  crons: typeof crons;
   feed: typeof feed;
+  generation: typeof generation;
+  generationActions: typeof generationActions;
   http: typeof http;
+  media: typeof media;
+  mediaCleanup: typeof mediaCleanup;
   profiles: typeof profiles;
+  serviceAuth: typeof serviceAuth;
+  studioAccess: typeof studioAccess;
+  studioScripts: typeof studioScripts;
+  studioValidators: typeof studioValidators;
+  tasks: typeof tasks;
 }>;
 
 /**
@@ -52,4 +74,6 @@ export declare const internal: FilterApi<
   FunctionReference<any, "internal">
 >;
 
-export declare const components: {};
+export declare const components: {
+  workpool: import("@convex-dev/workpool/_generated/component.js").ComponentApi<"workpool">;
+};

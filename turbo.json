@@ -26,6 +26,9 @@
     },
     "@virel/api#build": {
       "outputs": []
+    },
+    "@virel/worker#build": {
+      "outputs": []
     }
   }
 }

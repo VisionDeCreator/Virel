@@ -72,6 +72,15 @@ export function Feed() {
                 </span>
                 <h2>{video.title}</h2>
                 <p>{video.description}</p>
+                {video.rootCreator && (
+                  <p>
+                    Original by @{video.rootCreator.username}
+                    {video.parentCreator &&
+                    video.parentCreator._id !== video.rootCreator._id
+                      ? ` · Remixed from @${video.parentCreator.username}`
+                      : ""}
+                  </p>
+                )}
                 <div className="feed-actions">
                   <Button
                     onClick={() => setMuted(!muted)}
@@ -79,6 +88,14 @@ export function Feed() {
                   >
                     {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
                   </Button>
+                  {video.remixEnabled && (
+                    <NavLink
+                      to={`/create?source=${video._id}`}
+                      className="button button--primary"
+                    >
+                      Remix video
+                    </NavLink>
+                  )}
                   <span className="status">
                     {video.royaltyEligible
                       ? "Platform original"

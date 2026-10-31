@@ -9,7 +9,8 @@
   "dependencies": {
     "convex": "^1.46.0",
     "@convex-dev/auth": "^0.0.95",
-    "@virel/backend": "workspace:*"
+    "@virel/backend": "workspace:*",
+    "@virel/shared": "workspace:*"
   },
   "devDependencies": {
     "@virel/config": "workspace:*",

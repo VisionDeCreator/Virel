@@ -12,7 +12,10 @@ createRoot(document.getElementById("root")!).render(
     <ErrorBoundary>
       <BrowserRouter>
         {client ? (
-          <BackendProvider client={client}>
+          <BackendProvider
+            client={client}
+            apiUrl={import.meta.env.VITE_API_URL}
+          >
             <App connected />
           </BackendProvider>
         ) : (

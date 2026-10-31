@@ -19,8 +19,7 @@ export function normalizeUsername(value: string): string {
 }
 
 export const creationModes = [
-  { value: "text", label: "Text to video" },
-  { value: "image", label: "Image to video" },
+  { value: "create", label: "Create" },
   { value: "remix", label: "Remix" },
 ] as const;
 export type CreationMode = (typeof creationModes)[number]["value"];
@@ -33,3 +32,4 @@ export const durations = [
   { value: "5", label: "5 seconds" },
   { value: "10", label: "10 seconds" },
 ] as const;
+export * from "./studio";

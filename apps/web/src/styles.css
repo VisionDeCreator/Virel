@@ -697,3 +697,332 @@ small,
     transition: none !important;
   }
 }
+
+/* Working Studio */
+.studio-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 24px;
+  align-items: start;
+}
+.studio-fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.studio-fields label {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.studio-fields input[type="checkbox"] {
+  width: 18px;
+  min-height: 18px;
+  accent-color: var(--primary);
+}
+.studio-fields input[type="file"] {
+  width: 100%;
+  font-size: 13px;
+}
+.studio-fields select,
+.studio-fields input:not([type="checkbox"]) {
+  max-width: 100%;
+}
+.credit-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 22px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  margin: 20px 0;
+}
+.studio-results {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+}
+.result-video {
+  display: block;
+  width: 100%;
+  max-height: 560px;
+  border-radius: 16px;
+  background: #090909;
+}
+.result-placeholder {
+  min-height: 280px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: #171614;
+  color: #b8b0a4;
+}
+.result-actions,
+.transform-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.reference-list {
+  display: grid;
+  gap: 6px;
+}
+.reference-chip {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.reference-chip button {
+  background: transparent;
+  color: inherit;
+  border: 0;
+  cursor: pointer;
+  min-width: 40px;
+  min-height: 36px;
+}
+.publish-form {
+  padding-top: 18px;
+  margin-top: 18px;
+  border-top: 1px solid var(--border);
+}
+.version-card {
+  display: grid;
+  gap: 8px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.version-select {
+  text-align: left;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 8px 0;
+}
+.credit-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.studio-page > .panel {
+  margin-top: 24px;
+}
+@media (max-width: 1000px) {
+  .studio-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.media-dropzone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 160px;
+  padding: 24px;
+  border: 2px dashed #655b50;
+  border-radius: 16px;
+  cursor: pointer;
+  text-align: center;
+  background: #1b1916;
+  transition:
+    border-color 120ms,
+    background 120ms;
+}
+.studio-fields .media-dropzone {
+  flex-direction: column;
+}
+.media-dropzone strong,
+.media-dropzone span,
+.media-dropzone small {
+  display: block;
+}
+.media-dropzone small {
+  color: #b8b0a4;
+  line-height: 1.6;
+}
+.media-dropzone:hover,
+.media-dropzone:focus-within,
+.media-dropzone--dragging {
+  border-color: #f18b45;
+  background: #302219;
+}
+.media-dropzone:focus-within {
+  outline: 2px solid #f18b45;
+  outline-offset: 3px;
+}
+.media-dropzone[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.media-dropzone input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.script-editor {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.script-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+}
+.script-toolbar label {
+  flex: 1;
+}
+.script-save {
+  font-size: 12px;
+  color: #b8b0a4;
+}
+.script-editor textarea {
+  width: 100%;
+  min-height: 180px;
+  resize: vertical;
+  padding: 14px;
+  border: 1px solid #655b50;
+  border-radius: 12px;
+  background: #181715;
+  color: #f7f2e9;
+  font: inherit;
+  box-sizing: border-box;
+}
+.script-linked-references {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+#script-suggestions {
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid #655b50;
+  border-radius: 12px;
+}
+#script-suggestions button {
+  text-align: left;
+  color: inherit;
+  background: transparent;
+  padding: 10px;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+#script-suggestions button[aria-selected="true"] {
+  background: #493123;
+}
+.script-history-preview {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+}
+.reference-library {
+  display: grid;
+  gap: 12px;
+}
+.reference-card {
+  display: flex;
+  gap: 12px;
+  border: 1px solid #655b50;
+  border-radius: 12px;
+  padding: 12px;
+  min-width: 0;
+}
+.reference-card > div {
+  display: grid;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+.reference-card strong {
+  overflow-wrap: anywhere;
+}
+.reference-thumbnail {
+  width: 64px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+@media (max-width: 480px) {
+  .reference-card {
+    flex-direction: column;
+  }
+}
+
+.studio-upload-status {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--color-primary, #e99555);
+  border-radius: 12px;
+  background: rgba(233, 149, 85, 0.08);
+}
+.studio-upload-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.studio-upload-filename {
+  overflow-wrap: anywhere;
+}
+.studio-upload-status progress {
+  width: 100%;
+  height: 8px;
+  accent-color: #e99555;
+}
+.studio-upload-spinner {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border: 2px solid #655b50;
+  border-top-color: #e99555;
+  border-radius: 50%;
+  animation: studio-upload-spin 0.8s linear infinite;
+}
+@keyframes studio-upload-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .studio-upload-spinner {
+    animation: none;
+  }
+}
+
+.media-upload-icon--busy {
+  animation: studio-upload-spin 0.8s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .media-upload-icon--busy {
+    animation: none;
+  }
+}

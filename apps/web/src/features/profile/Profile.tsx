@@ -32,6 +32,7 @@ export function Profile() {
     return (
       <section className="profile">
         <ProfileForm />
+        <PublishedVideos />
         <Button
           variant="ghost"
           onClick={() => {
@@ -211,5 +212,30 @@ export function ProfilePreview() {
         </Notice>
       </Panel>
     </section>
+  );
+}
+
+function PublishedVideos() {
+  const videos = useQuery(api.generation.myPublished);
+  return (
+    <Panel>
+      <h2>Your published videos</h2>
+      {!videos?.length && (
+        <p>Your published originals and remixes will appear here.</p>
+      )}
+      {videos?.map((video) => (
+        <article key={video._id}>
+          <video
+            className="result-video"
+            src={video.playbackUrl}
+            controls
+            playsInline
+            preload="metadata"
+          />
+          <h3>{video.title}</h3>
+          <p>{video.description}</p>
+        </article>
+      ))}
+    </Panel>
   );
 }

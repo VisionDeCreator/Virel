@@ -33,7 +33,10 @@ export default defineConfig({
     {
       command: "bun run dev:web --host localhost --port 5190 --strictPort",
       url: "http://localhost:5190",
-      env: { VITE_CONVEX_URL: convexUrl },
+      env: {
+        VITE_CONVEX_URL: convexUrl,
+        VITE_API_URL: "http://127.0.0.1:3190",
+      },
       reuseExistingServer: false,
     },
     {

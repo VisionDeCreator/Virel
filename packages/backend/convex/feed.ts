@@ -14,13 +14,27 @@ export const list = query({
     return {
       ...page,
       page: await Promise.all(
-        page.page.map(async (video) => ({
-          ...video,
-          creator: await ctx.db
-            .query("profiles")
-            .withIndex("by_user", (q) => q.eq("userId", video.creatorId))
-            .unique(),
-        })),
+        page.page.map(async (video) => {
+          const root = video.rootVideoId
+            ? await ctx.db.get(video.rootVideoId)
+            : null;
+          const parent = video.parentVideoId
+            ? await ctx.db.get(video.parentVideoId)
+            : null;
+          const profileFor = async (id: typeof video.creatorId | undefined) =>
+            id
+              ? await ctx.db
+                  .query("profiles")
+                  .withIndex("by_user", (q) => q.eq("userId", id))
+                  .unique()
+              : null;
+          return {
+            ...video,
+            creator: await profileFor(video.creatorId),
+            rootCreator: await profileFor(root?.creatorId),
+            parentCreator: await profileFor(parent?.creatorId),
+          };
+        }),
       ),
     };
   },

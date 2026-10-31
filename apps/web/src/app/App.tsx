@@ -1,6 +1,7 @@
 import { NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { Home, Compass, Plus, Bell, User, ArrowUpRight } from "lucide-react";
 import { EmptyState } from "@virel/ui";
+import { api, useQuery, useConvexAuth } from "@virel/api-client";
 import { navigation } from "@virel/shared";
 import { Feed, FeedPreview } from "../features/feed/Feed";
 import { Profile, ProfilePreview } from "../features/profile/Profile";
@@ -53,6 +54,7 @@ export function App({ connected }: { connected: boolean }) {
         <header>
           <span className="page-label">{title}</span>
           <div className="header-end">
+            {connected && <CreditBalance />}
             {!connected && <span className="status">Design preview</span>}
             <NavLink
               to="/profile"
@@ -100,4 +102,14 @@ export function App({ connected }: { connected: boolean }) {
       </main>
     </div>
   );
+}
+
+function CreditBalance() {
+  const { isAuthenticated } = useConvexAuth();
+  const balance = useQuery(api.credits.balance, isAuthenticated ? {} : "skip");
+  return isAuthenticated ? (
+    <NavLink to="/create" className="status">
+      {balance?.available ?? 0} credits
+    </NavLink>
+  ) : null;
 }

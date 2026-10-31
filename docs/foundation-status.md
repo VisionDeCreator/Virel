@@ -50,3 +50,19 @@ The opt-in command `PLAYWRIGHT_CHANNEL=chrome bun run test:auth` runs against th
 The live test verified signup, password sign-in in an independent session, profile creation, real-time updates between sessions, reload persistence, valid-token API access, anonymous/invalid-token rejection, and logout persistence. Logging out one session did not sign out the independent session. Physical native device behavior and global revocation are not established by this browser test.
 
 Convex reported that the team is above Free plan limits during deployment. Deployment and authentication succeeded, but team usage should be reviewed to avoid service interruption. No plan or billing changes were made.
+
+## Studio implementation — October 31, 2026
+
+Added shared web/native Studio operations, R2 upload and media verification, provider quotes/submission/polling, private previews and version history, AI revisions, publishing/unpublishing, feed remix links, profile publication listings, and promotional credit accounting. Runtime server configuration, development deployment, real provider/media acceptance, and physical-device validation remain pending. Google analysis is deferred. The R2 bucket remains private; publication is authorized from Convex metadata on each stable playback request. See studio-implementation.md.
+
+## Two-mode Studio revision — October 31, 2026
+
+Replaced the three creation modes with Create (Seedance 2.5, optional image/video guidance) and Remix (required source video). Added server-backed script segments, serial autosave with revision conflicts and local recovery, immutable script history, named @ references with replacement/rename, and web drag-and-drop for mixed media and script linking. Create output controls cover 4–15 seconds, 720p/1080p, and 16:9/9:16/1:1. The updated functions/schema are deployed to nautical-goat-396. Existing job snapshots remain readable. No paid render or physical-device acceptance was performed in this revision.
+
+## Generation duration cap — October 31, 2026
+
+New Create and Remix generations are limited to 4–15 seconds so newly created outputs fit the Remix duration requirement. Web, preview, and native controls share the same duration options. Server quote validation, draft saves, and the provider submission boundary enforce the cap. Restored longer drafts normalize to 15 seconds and save as a new version; historical snapshots remain unchanged. Previously accepted longer provider jobs may finish under their original request, but new submissions above 15 seconds are rejected. Optional Create reference videos may still be up to 30 seconds; they do not determine the output duration.
+
+## API/worker migration — October 31, 2026
+
+Studio storage/provider operations moved out of Convex actions into Bun API services and a separate worker. Both clients route side effects through authenticated API requests. Convex retains metadata, subscriptions, durable task claims, and financial transactions. Upload completion claims and worker lease fencing cover concurrent completion and restart recovery. R2/provider credentials are no longer required in Convex. Live storage and integration results are recorded in studio-implementation.md.

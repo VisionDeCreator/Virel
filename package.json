@@ -8,7 +8,7 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "turbo run dev --filter=@virel/web --filter=@virel/api",
+    "dev": "turbo run dev --filter=@virel/web --filter=@virel/api --filter=@virel/worker",
     "dev:web": "bun run --cwd apps/web dev",
     "dev:admin": "bun run --cwd apps/admin dev",
     "dev:mobile": "bun run --cwd apps/mobile dev",
@@ -21,7 +21,11 @@
     "format:check": "prettier --check .",
     "test:web": "playwright test",
     "setup:clients": "bun scripts/connect-clients.ts",
-    "test:auth": "playwright test --config playwright.auth.config.ts"
+    "test:auth": "playwright test --config playwright.auth.config.ts",
+    "setup:studio": "bun packages/backend/scripts/configure-studio.ts",
+    "dev:worker": "bun run --cwd apps/worker dev",
+    "check:studio-storage": "bun apps/api/src/check-storage.ts",
+    "test:studio": "STUDIO_STORAGE_ACCEPTANCE=1 playwright test --config playwright.auth.config.ts"
   },
   "devDependencies": {
     "typescript": "~5.9.3",
