@@ -1,10 +1,15 @@
 :root {
-  --background: #09090f;
-  --surface: #15151f;
-  --border: #292936;
-  --text: #f5f3ff;
-  --muted: #a1a1b5;
-  --primary: #a78bfa;
-  --pink: #f472b6;
+  --background: #120e0c;
+  --surface: #1c1714;
+  --elevated: #27201b;
+  --border: #3d332b;
+  --text: #fff4e1;
+  --muted: #b7aa9d;
+  --primary: #ff641f;
+  --primary-text: #231006;
+  --danger: #ff9a89;
+  --success: #a6cbaa;
+  --radius-control: 12px;
+  --radius-panel: 20px;
   color-scheme: dark;
 }

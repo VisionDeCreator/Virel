@@ -1,5 +1,12 @@
 import type { ReactNode } from "react";
-import { ScrollView, Text, StyleSheet } from "react-native";
+import {
+  ScrollView,
+  Text,
+  StyleSheet,
+  View,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
 import { colors } from "@virel/design-tokens";
 export function Screen({
   title,
@@ -9,21 +16,42 @@ export function Screen({
   children: ReactNode;
 }) {
   return (
-    <ScrollView
-      contentContainerStyle={styles.content}
-      keyboardShouldPersistTaps="handled"
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <Text style={styles.brand}>virel ✦</Text>
-      <Text style={styles.heading}>{title}</Text>
-      {children}
-    </ScrollView>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.brandRow}>
+          <Text style={styles.mark}>v</Text>
+          <Text style={styles.brand}>virel</Text>
+        </View>
+        <Text style={styles.heading}>{title}</Text>
+        {children}
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 export const styles = StyleSheet.create({
-  content: { padding: 24, gap: 20 },
-  brand: { color: colors.primary, fontSize: 18, fontWeight: "800" },
-  heading: { color: colors.text, fontSize: 32, fontWeight: "700" },
-  text: { color: colors.muted, fontSize: 16, lineHeight: 25 },
+  content: { padding: 22, paddingBottom: 40, gap: 22 },
+  brandRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  mark: { color: colors.primary, fontSize: 28, fontWeight: "900" },
+  brand: {
+    color: colors.text,
+    fontSize: 24,
+    fontWeight: "700",
+    letterSpacing: -1,
+  },
+  heading: {
+    color: colors.text,
+    fontSize: 34,
+    lineHeight: 38,
+    fontWeight: "700",
+    letterSpacing: -1,
+  },
+  text: { color: colors.muted, fontSize: 15, lineHeight: 24 },
   input: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
@@ -31,6 +59,8 @@ export const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     color: colors.text,
+    fontSize: 16,
+    minHeight: 48,
   },
   label: { color: colors.text, fontSize: 14 },
 });

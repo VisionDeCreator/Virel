@@ -15,11 +15,13 @@
     "dev:api": "bun run --cwd apps/api dev",
     "dev:convex": "bun run --cwd packages/backend dev",
     "build": "turbo run build",
-    "typecheck": "turbo run typecheck",
+    "typecheck": "turbo run typecheck && tsc -p tsconfig.tools.json",
     "test": "turbo run test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test:web": "playwright test"
+    "test:web": "playwright test",
+    "setup:clients": "bun scripts/connect-clients.ts",
+    "test:auth": "playwright test --config playwright.auth.config.ts"
   },
   "devDependencies": {
     "typescript": "~5.9.3",

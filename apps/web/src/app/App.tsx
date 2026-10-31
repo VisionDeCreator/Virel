@@ -1,82 +1,89 @@
-import { NavLink, Route, Routes } from "react-router-dom";
+import { NavLink, Route, Routes, useLocation } from "react-router-dom";
+import { Home, Compass, Plus, Bell, User, ArrowUpRight } from "lucide-react";
 import { EmptyState } from "@virel/ui";
 import { navigation } from "@virel/shared";
-import { Feed } from "../features/feed/Feed";
-import { Profile } from "../features/profile/Profile";
+import { Feed, FeedPreview } from "../features/feed/Feed";
+import { Profile, ProfilePreview } from "../features/profile/Profile";
+import { Studio } from "../features/studio/Studio";
+const icons = [Home, Compass, Plus, Bell, User];
 export function App({ connected }: { connected: boolean }) {
+  const path = useLocation().pathname;
+  const title =
+    path === "/"
+      ? "Discover"
+      : path === "/create"
+        ? "Studio"
+        : path === "/profile"
+          ? "Your profile"
+          : path.slice(1);
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <a className="wordmark" href="/">
-          virel<span>✦</span>
-        </a>
-        <p className="tagline">A new creative current.</p>
+        <NavLink to="/" className="wordmark">
+          <span className="brand-mark">v</span>virel
+        </NavLink>
         <nav aria-label="Main navigation">
-          {navigation.map((name, i) => (
-            <NavLink
-              key={name}
-              to={i === 0 ? "/" : `/${name.toLowerCase()}`}
-              end={i === 0}
-            >
-              <span aria-hidden="true">{["◈", "⌕", "+", "♡", "◎"][i]}</span>
-              {name}
-            </NavLink>
-          ))}
+          {navigation.map((name, i) => {
+            const Icon = icons[i];
+            return (
+              <NavLink
+                key={name}
+                to={i === 0 ? "/" : `/${name.toLowerCase()}`}
+                end={i === 0}
+              >
+                <Icon size={21} aria-hidden="true" />
+                {name}
+              </NavLink>
+            );
+          })}
         </nav>
         <div className="sidebar-note">
-          Create. Remix.
-          <br />
-          Make it yours.
+          <span className="eyebrow">A LITTLE IMAGINATION.</span>
+          <p>
+            A whole new
+            <br />
+            point of view.
+          </p>
+          <NavLink to="/create">
+            Make something <ArrowUpRight size={15} />
+          </NavLink>
         </div>
       </aside>
       <main>
         <header>
-          <span>THE NEXT WAVE OF CREATIVITY</span>
-          <span className="status">
-            {connected ? "Connected to Virel" : "Foundation preview"}
-          </span>
+          <span className="page-label">{title}</span>
+          <div className="header-end">
+            {!connected && <span className="status">Design preview</span>}
+            <NavLink
+              to="/profile"
+              className="account-link"
+              aria-label="Open your profile"
+            >
+              <User size={19} />
+            </NavLink>
+          </div>
         </header>
         <Routes>
-          <Route
-            path="/"
-            element={
-              connected ? (
-                <Feed />
-              ) : (
-                <EmptyState title="Your next inspiration starts here.">
-                  Connect your Convex deployment to load the shared video feed.
-                  No demo activity or earnings are simulated.
-                </EmptyState>
-              )
-            }
-          />
+          <Route path="/" element={connected ? <Feed /> : <FeedPreview />} />
           <Route
             path="/profile"
-            element={
-              connected ? (
-                <Profile />
-              ) : (
-                <EmptyState title="One identity. Every screen.">
-                  Connect Convex to sign in and create your profile across web
-                  and mobile.
-                </EmptyState>
-              )
-            }
+            element={connected ? <Profile /> : <ProfilePreview />}
           />
-          {["explore", "create", "activity"].map((path) => (
+          <Route path="/create" element={<Studio connected={connected} />} />
+          {["explore", "activity"].map((path) => (
             <Route
               key={path}
               path={`/${path}`}
               element={
                 <EmptyState
                   title={
-                    path === "create"
-                      ? "Give your imagination a moving picture."
-                      : `${path[0].toUpperCase()}${path.slice(1)} is taking shape.`
+                    path === "explore"
+                      ? "Find your next inspiration."
+                      : "Your creative circle starts here."
                   }
                 >
-                  This destination is reserved for the next milestone.
-                  Generation and payments are not enabled.
+                  This space is taking shape. In the meantime, explore your feed
+                  or start a new idea.
                 </EmptyState>
               }
             />

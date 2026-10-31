@@ -1,37 +1,107 @@
 # Virel Implementation Plan
 
-Status: proposed milestones for review. Updated October 30, 2026.
+Status: foundation source implemented; live integration and device validation pending. Updated October 30, 2026.
 
 The first milestone proves that web and native mobile can authenticate against the same backend and display the same profile and feed. Subsequent milestones establish the complete discovery and remix loop before expanding paid access. Foundation implementation was authorized and started on October 30, 2026; see foundation-status.md for progress and outstanding validation.
 
-## Milestone 0 Resolve foundation choices
+## Current baseline
 
-- Review the architecture blueprint and the previous Virel visual concept.
-- Validate Convex Auth across web, iOS, and Android with an isolated prototype once coding is authorized.
-- Select a Bun-compatible API framework and pin compatible toolchain versions, including Expo's required React and React Native versions.
-- Identify environments and hosting candidates. Keep production credentials separate from local development.
-- Record unresolved providers and policies without inventing final pricing or payout terms.
+The Bun/Turborepo workspace, React web/admin shells, Expo app, Elysia API, Convex Auth source, profile functions, and paginated feed source are implemented. Local typechecks, builds, backend/API tests, browser checks, and iOS/Android JavaScript exports have passed. These checks do not establish live authentication, cloud deployment, signed native builds, or physical-device performance.
 
-Completion: foundation decisions are documented, auth risks have an actionable outcome, and web/mobile routes and primary screens have an agreed direction.
+Keep the existing architecture and build on this foundation. Do not recreate the workspace or copy Cinakey application code. See [foundation status](foundation-status.md) for the verification record.
 
-## Milestone 1 Shared application foundation
+## Next delivery sequence
 
-Establish Bun workspaces and Turborepo using Cinakey's organization. Add web, mobile, admin, and minimal API shells, shared configuration, backend, API client, tokens, and platform UI foundations. Reserve worker placement; implement the service when a workload needs it.
+| Order | Work package                                          | Depends on                                       | Result                                                  |
+| ----- | ----------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------- |
+| 1     | Connect the development backend                       | Convex project/team selection and account access | Deployed schema, generated types, configured clients    |
+| 2     | Verify authentication and profile synchronization     | Work package 1                                   | Same account and profile working on web and mobile      |
+| 3     | Complete account security and recovery                | Work package 2 and email/OAuth configuration     | Verified identity, recovery, and session controls       |
+| 4     | Validate controlled media and feed playback           | Work package 1 and authorized media              | Shared feed proven on browser and native devices        |
+| 5     | Apply the Virel visual reference                      | Visual reference and screen decisions            | Consistent web/mobile layouts and interaction states    |
+| 6     | Complete foundation acceptance and development checks | Work packages 2–5                                | Recorded evidence and a stable base for social features |
 
-Connect Convex Auth and profiles. Add a paginated feed backed by controlled seed media, explicit empty/loading/error states, and a minimal authenticated API operation. Use shared types without leaking server modules into clients. Document local setup and required environment variables.
+After backend connection, media validation can proceed independently of account recovery and visual refinement. Provider evaluation can begin separately, but generation implementation follows the social foundation and credit architecture described below.
 
-Completion:
+## Work package 1 Connect the development backend
 
-- The same account signs into web and mobile and sees the same profile and published feed.
-- Profile changes propagate to both clients.
-- Private profile operations reject unauthenticated and unauthorized requests.
-- Sign-in persistence and logout work on browser, physical iOS, and physical Android.
-- The API verifies authentication on its protected operation.
-- Workspace checks and reproducible installs run through Bun commands.
+- [ ] Confirm whether Virel uses an existing Convex project or a new project, and identify the owning team. Keep it separate from Cinakey and production data.
+- [ ] Configure a Virel development deployment and deploy the existing schema and functions.
+- [ ] Configure Convex Auth signing keys, the web origin, and required deployment environment values using the auth setup tooling.
+- [ ] Set development URLs for web, mobile, and Bun API. Use a phone-accessible address for native API testing.
+- [ ] Run Convex code generation to replace the bootstrap references with CLI-generated files, then rerun typechecks and backend tests.
+- [ ] Document reproducible setup and verify that client variables contain no server credentials.
+
+Acceptance: all three clients/services target the same intended development deployment; Convex functions deploy and generated types compile; the API health endpoint works; no production or Cinakey deployment is changed.
+
+## Work package 2 Verify shared accounts and profiles
+
+- [ ] Create an account through web and sign into the same account through iOS and Android development builds.
+- [ ] Verify profile creation and editing from both platforms. Confirm a change appears in another active client without manual refresh.
+- [ ] Test duplicate username rejection and anonymous/cross-user update restrictions against the development backend.
+- [ ] Test app restart and browser reload, token refresh, local logout, and expired-session behavior.
+- [ ] Call the Bun API with valid, missing, malformed, and expired bearer tokens. Confirm concurrent users cannot receive each other's profiles.
+- [ ] Provide useful loading, session-expired, network-failure, and retry states without leaking internal errors.
+
+Acceptance: a single identity owns one profile across clients; authorized updates synchronize; invalid credentials fail closed; session persistence works on actual iOS and Android devices. Document local logout separately from any global session revocation behavior.
+
+## Work package 3 Complete account security and recovery
+
+- [ ] Select a transactional email service and configure a development sender for verification and password recovery.
+- [ ] Implement email verification, password reset, expiry, replay protection, and request throttling. Avoid account enumeration in public responses.
+- [ ] Configure and validate Google and Apple sign-in as previously proposed, including web/native redirects and secure token storage. This requires provider accounts and app identifiers.
+- [ ] Define explicit account linking behavior for verified identities; prevent accidental account takeover through a matching email alone.
+- [ ] Validate session revocation and behavior after password reset. Add targeted tests for the intended policies.
+- [ ] Record any Convex Auth capability gaps and decide whether to retain it or evaluate an alternative before public accounts are accepted.
+
+Acceptance: verification and recovery complete on web and native clients; supported social logins resolve to the intended account; linking and revocation behavior are documented and tested. Public account access remains gated until this work is complete.
+
+## Work package 4 Validate the shared video feed
+
+- [ ] Import a small set of authorized HTTPS preview videos through the internal seed operation. Keep fixtures ineligible for royalties and remixing disabled.
+- [ ] Verify identical publication visibility and pagination on web and mobile, including empty and exhausted-feed states.
+- [ ] Build vertical feed playback with one active video, deliberate sound controls, bounded preloading, and pause behavior when content leaves view or the app enters the background.
+- [ ] Handle unavailable media, buffering, connection loss, and playback errors without breaking navigation.
+- [ ] Test real iOS and Android devices for scrolling, memory behavior, playback, and app background/foreground transitions.
+- [ ] Confirm hidden/private videos never appear in the public feed and that newly hidden content updates connected clients.
+
+Acceptance: the controlled feed plays reliably across platforms, pagination does not duplicate or skip records in the tested flows, only the intended video plays, and private/hidden content is excluded. Record devices and observed limitations; do not infer native quality from JavaScript exports.
+
+## Work package 5 Apply the visual reference
+
+- [ ] Obtain the previous Virel concept and review feed, sign-in/onboarding, profile, and navigation screens.
+- [ ] Map colors, typography, spacing, and interaction states to shared tokens while retaining platform-specific UI components.
+- [ ] Refine mobile tabs and desktop navigation, keyboard/safe-area behavior, focus indicators, contrast, and accessible labels.
+- [ ] Review narrow mobile, tablet, and desktop layouts and capture representative previews.
+
+Acceptance: the core screens follow the agreed concept and remain usable with keyboard navigation, native safe areas, larger text, and loading/error states. Backend work can continue while the reference is outstanding; final visual alignment cannot be claimed without it.
+
+## Work package 6 Close foundation acceptance
+
+- [ ] Configure CI for a frozen Bun install, formatting, typechecks, backend/API tests, web/admin builds, and browser tests.
+- [ ] Add authenticated end-to-end coverage against an isolated test deployment once that environment is available. Keep anonymous setup-state coverage as a separate suite.
+- [ ] Verify native bundle exports and document development-build/device checks. Choose a native end-to-end tool before beta.
+- [ ] Review server/client import boundaries, environment handling, and API origin/CORS policy before browser API integrations are enabled.
+- [ ] Update README and foundation status with exact commands, environment prerequisites, verification results, and remaining limitations.
+
+Acceptance: automated checks are repeatable; work packages 1–5 have evidence for their acceptance criteria; remaining production-specific work is explicitly tracked. No deployment keys, OAuth secrets, or signing credentials are committed.
+
+## Inputs needed to complete the next delivery
+
+| Input                                                    | Needed for                                 |
+| -------------------------------------------------------- | ------------------------------------------ |
+| Convex account access and project/team choice            | Development deployment and live validation |
+| Previous Virel visual reference                          | Final alignment of core screens            |
+| Physical iOS/Android devices and development-build setup | Native session and playback acceptance     |
+| Email provider and verified sender                       | Verification and recovery                  |
+| Google/Apple configuration and app identifiers           | Social authentication and redirects        |
+| CI repository/platform choice                            | Automated checks on pull requests          |
+
+Use environment configuration or the provider setup flow for credentials rather than putting secrets in chat or documentation. Final AI provider, payment provider, business-country details, hosting, and payout policies remain later dependencies; they do not block the initial live profile/feed validation.
 
 ## Milestone 2 Usable social feed
 
-Build vertical playback, sound controls, pagination, follows, likes, comments, bookmarks, profiles, basic discovery, and activity notifications. Add reporting and minimal admin review. Apply the visual direction across web and mobile while using platform-appropriate navigation.
+After the foundation acceptance work above, extend the validated feed with follows, likes, comments, bookmarks, public creator profiles, basic discovery, and activity notifications. Add reporting, server-enforced admin roles, moderation actions, and minimal admin review. Preserve platform-appropriate navigation and the agreed visual direction.
 
 Completion: users can discover and interact with published content; pagination avoids unrestricted scans; moderation can hide reported content; real-device feed testing covers scrolling, preloading, memory, and background playback behavior.
 

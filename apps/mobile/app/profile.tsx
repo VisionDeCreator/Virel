@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Text, TextInput } from "react-native";
+import { Text } from "react-native";
 import {
   api,
   useQuery,
@@ -7,7 +7,7 @@ import {
   useConvexAuth,
   useAuthActions,
 } from "@virel/api-client";
-import { Button } from "@virel/ui-native";
+import { Button, Panel, Field } from "@virel/ui-native";
 import { Screen, styles } from "../src/components/Screen";
 import { client } from "../src/lib/backend";
 function Editor() {
@@ -50,26 +50,23 @@ function Fields({
   }
   return (
     <>
-      <Text style={styles.label}>Username</Text>
-      <TextInput
-        accessibilityLabel="Username"
+      <Field
+        label="Username"
         style={styles.input}
         value={username}
         onChangeText={setUsername}
         autoCapitalize="none"
         maxLength={24}
       />
-      <Text style={styles.label}>Display name</Text>
-      <TextInput
-        accessibilityLabel="Display name"
+      <Field
+        label="Display name"
         style={styles.input}
         value={displayName}
         onChangeText={setDisplayName}
         maxLength={60}
       />
-      <Text style={styles.label}>Biography</Text>
-      <TextInput
-        accessibilityLabel="Biography"
+      <Field
+        label="Biography"
         style={styles.input}
         value={bio}
         onChangeText={setBio}
@@ -127,9 +124,8 @@ function Account() {
         </>
       ) : (
         <>
-          <Text style={styles.label}>Email</Text>
-          <TextInput
-            accessibilityLabel="Email"
+          <Field
+            label="Email"
             style={styles.input}
             value={email}
             onChangeText={setEmail}
@@ -137,9 +133,8 @@ function Account() {
             keyboardType="email-address"
             autoComplete="email"
           />
-          <Text style={styles.label}>Password</Text>
-          <TextInput
-            accessibilityLabel="Password"
+          <Field
+            label="Password"
             style={styles.input}
             value={password}
             onChangeText={setPassword}
@@ -179,10 +174,32 @@ export default function Profile() {
   return client ? (
     <Account />
   ) : (
-    <Screen title="One identity. Every screen.">
-      <Text style={styles.text}>
-        Connect Convex to create your shared profile.
-      </Text>
+    <Screen title="Make your mark.">
+      <Panel>
+        <Text style={[styles.label, { fontSize: 22 }]}>
+          A space that's yours.
+        </Text>
+        <Text style={styles.text}>
+          One identity. Every screen. Your originals, your remixes, your point
+          of view.
+        </Text>
+        <Field label="Username" placeholder="your_name" editable={false} />
+        <Field
+          label="Display name"
+          placeholder="How should we call you?"
+          editable={false}
+        />
+        <Field
+          label="Biography"
+          placeholder="A little about your creative world…"
+          multiline
+          editable={false}
+        />
+        <Button title="Create your profile" disabled onPress={() => {}} />
+        <Text style={styles.text}>
+          Account setup will be available when sign-in is connected.
+        </Text>
+      </Panel>
     </Screen>
   );
 }

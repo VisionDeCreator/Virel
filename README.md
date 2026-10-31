@@ -63,3 +63,21 @@ Browser tests require Playwright Chromium (`bunx playwright install chromium`) o
 ## Structure and planning
 
 Applications live in `apps/`, shared packages in `packages/`, and environment guidance in `deployments/`. See [architecture](docs/architecture.md), [implementation milestones](docs/implementation-plan.md), and [foundation status](docs/foundation-status.md).
+
+## Approved visual direction and client connection
+
+The feed, studio, and profile use the approved matte orange/ivory/dark visual system. See [style guide](docs/design/style-guide.md). Unconfigured clients display labeled concept previews. Generation is not enabled; prompt controls do not submit jobs or charge credits.
+
+Once the intended Convex deployment is configured in `packages/backend/.env.local`, run `bun run setup:clients` to populate the public backend URL in web, native, and API environment files. Existing unrelated keys are retained. Restart running services afterward. This command does not provision a deployment, set auth keys, or upload source. All four environment files are ignored by Git.
+
+## Live development authentication tests
+
+Email/password authentication is configured on the Virel development deployment. Run `PLAYWRIGHT_CHANNEL=chrome bun run test:auth` to exercise real sign-up, two independent browser sessions, profile synchronization, reload persistence, authenticated API access, and logout. The suite creates labeled development test accounts and must never target production. It uses ports 5190 and 3190, with traces and credential-bearing recordings disabled. Test accounts remain in development data.
+
+Authentication keys live in Convex environment configuration, never client variables. SITE_URL currently points to http://localhost:5173 for local development. Password recovery, email verification, Google/Apple login, and physical native-device authentication validation remain separate work.
+
+## Planned Remix server configuration
+
+The root `.env.example` lists planned R2, rendering, optional vision, and service-authentication settings. Empty placeholders are also provided in the ignored root `.env` and API `.env`; existing local values are preserved. The API's service-local `.env.example` mirrors these placeholders. Bun API development runs from `apps/api`, so populate `apps/api/.env` for that service; the root file is a configuration inventory, not an automatic source for every service.
+
+Keep credentials in ignored server environment files or deployment secret settings. Never use `VITE_` or `EXPO_PUBLIC_` prefixes for secrets. When the media worker is implemented, supply only its required settings in its own ignored environment file. Convex deployment secrets must be configured through Convex environment settings separately. These placeholders do not enable generation or storage integrations. Google video analysis is deferred.

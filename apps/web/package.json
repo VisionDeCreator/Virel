@@ -15,7 +15,8 @@
     "@virel/api-client": "workspace:*",
     "@virel/ui": "workspace:*",
     "@virel/shared": "workspace:*",
-    "@virel/design-tokens": "workspace:*"
+    "@virel/design-tokens": "workspace:*",
+    "lucide-react": "^1.48.0"
   },
   "devDependencies": {
     "@virel/config": "workspace:*",

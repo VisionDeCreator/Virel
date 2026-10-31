@@ -27,7 +27,8 @@
     "@virel/api-client": "workspace:*",
     "@virel/design-tokens": "workspace:*",
     "@virel/shared": "workspace:*",
-    "@virel/ui-native": "workspace:*"
+    "@virel/ui-native": "workspace:*",
+    "@expo/vector-icons": "^15.0.2"
   },
   "devDependencies": {
     "@types/react": "~19.3.0"
