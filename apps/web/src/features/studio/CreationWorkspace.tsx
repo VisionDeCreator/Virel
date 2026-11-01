@@ -12,7 +12,15 @@ import {
   Globe,
   LoaderCircle,
 } from "lucide-react";
-import { api, useQuery, usePaginatedQuery, useStudio } from "@virel/api-client";
+import { TimelineEditor, TimelineProjects } from "../timeline/TimelineEditor";
+import {
+  api,
+  useQuery,
+  usePaginatedQuery,
+  useStudio,
+  useMutation,
+  type Id,
+} from "@virel/api-client";
 import { Button, Notice, SegmentedControl } from "@virel/ui";
 import {
   creationFilters,
@@ -30,6 +38,8 @@ export function CreationWorkspace() {
   const studio = useStudio();
   const [params, setParams] = useSearchParams();
   const jobId = params.get("job");
+  const timelineId = params.get("timeline");
+  const createTimeline = useMutation(api.timeline.create);
   const editing = params.get("view") === "new" || Boolean(params.get("source"));
   const title = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -42,6 +52,14 @@ export function CreationWorkspace() {
   function details(id: string) {
     setParams({ job: id });
   }
+  if (timelineId)
+    return (
+      <TimelineEditor
+        key={timelineId}
+        projectId={timelineId as Id<"timelineProjects">}
+        onBack={() => setParams({})}
+      />
+    );
   return (
     <div ref={title} tabIndex={-1} className="creation-root">
       {(jobId || editing) && (
@@ -55,6 +73,13 @@ export function CreationWorkspace() {
           id={jobId}
           studio={studio}
           onLibrary={library}
+          onTimeline={(job) =>
+            void studio.run(async () => {
+              if (!job.videoId) throw new Error("Generated video unavailable.");
+              const id = await createTimeline({ videoId: job.videoId });
+              setParams({ timeline: id });
+            })
+          }
           onEdit={(job) => setParams({ view: "new", retry: job._id })}
           onRemix={(job) =>
             setParams({ view: "new", asset: job.outputAssetId! })
@@ -63,11 +88,14 @@ export function CreationWorkspace() {
       ) : editing ? (
         <StudioEditor studio={studio} onGenerated={details} />
       ) : (
-        <CreationLibrary
-          studio={studio}
-          onCreate={() => setParams({ view: "new" })}
-          onSelect={details}
-        />
+        <>
+          <CreationLibrary
+            studio={studio}
+            onCreate={() => setParams({ view: "new" })}
+            onSelect={details}
+          />
+          <TimelineProjects open={(id) => setParams({ timeline: id })} />
+        </>
       )}
     </div>
   );
@@ -232,12 +260,14 @@ function VideoDetails({
   onLibrary,
   onRemix,
   onEdit,
+  onTimeline,
 }: {
   id: string;
   studio: Studio;
   onLibrary: () => void;
   onRemix: (job: Job) => void;
   onEdit: (job: Job) => void;
+  onTimeline: (job: Job) => void;
 }) {
   const job = useQuery(api.generation.detail, { jobId: id });
   const [url, setUrl] = useState("");
@@ -441,6 +471,12 @@ function VideoDetails({
               >
                 <Download size={18} />
                 Download video
+              </Button>
+              <Button
+                disabled={studio.busy || job.financialState === "refunded"}
+                onClick={() => onTimeline(job)}
+              >
+                Edit timeline
               </Button>
               <div className="result-actions">
                 <Button disabled={studio.busy} onClick={() => onRemix(job)}>

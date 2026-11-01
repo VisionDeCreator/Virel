@@ -1,3 +1,7 @@
+import {
+  NativeTimelineEditor,
+  NativeTimelineProjects,
+} from "../timeline/TimelineEditor";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useEffect, useState } from "react";
 import {
@@ -10,7 +14,14 @@ import {
 } from "react-native";
 import { Link, useLocalSearchParams, useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { api, useQuery, usePaginatedQuery, useStudio } from "@virel/api-client";
+import {
+  api,
+  useQuery,
+  usePaginatedQuery,
+  useStudio,
+  useMutation,
+  type Id,
+} from "@virel/api-client";
 import { Button, Panel, SegmentedControl } from "@virel/ui-native";
 import { colors } from "@virel/design-tokens";
 import {
@@ -33,9 +44,19 @@ export function NativeCreationWorkspace() {
     job?: string;
     view?: string;
     source?: string;
+    timeline?: string;
   }>();
   const router = useRouter();
   const library = () => router.replace("/create");
+  const createTimeline = useMutation(api.timeline.create);
+  if (params.timeline)
+    return (
+      <NativeTimelineEditor
+        key={params.timeline}
+        projectId={params.timeline as Id<"timelineProjects">}
+        back={library}
+      />
+    );
   if (params.job)
     return (
       <NativeVideoDetails
@@ -43,6 +64,13 @@ export function NativeCreationWorkspace() {
         id={params.job}
         studio={studio}
         library={library}
+        timeline={(job) =>
+          void studio.run(async () => {
+            if (!job.videoId) throw new Error("Generated video unavailable.");
+            const id = await createTimeline({ videoId: job.videoId });
+            router.push({ pathname: "/create", params: { timeline: id } });
+          })
+        }
         edit={(job) =>
           router.replace({
             pathname: "/create",
@@ -93,6 +121,7 @@ function NativeLibrary({
   select: (id: string) => void;
 }) {
   const [filter, setFilter] = useState<CreationFilter>("ready");
+  const router = useRouter();
   const { results, status, loadMore } = usePaginatedQuery(
     api.generation.library,
     { filter },
@@ -202,6 +231,11 @@ function NativeLibrary({
           {status === "LoadingMore" && (
             <ActivityIndicator color={colors.primary} />
           )}
+          <NativeTimelineProjects
+            open={(id) =>
+              router.push({ pathname: "/create", params: { timeline: id } })
+            }
+          />
         </View>
       }
     />
@@ -257,12 +291,14 @@ function NativeVideoDetails({
   library,
   remix,
   edit,
+  timeline,
 }: {
   id: string;
   studio: Studio;
   library: () => void;
   remix: (job: Job) => void;
   edit: (job: Job) => void;
+  timeline: (job: Job) => void;
 }) {
   const job = useQuery(api.generation.detail, { jobId: id });
   const [now, setNow] = useState(Date.now());
@@ -410,6 +446,11 @@ function NativeVideoDetails({
                 });
               })
             }
+          />
+          <Button
+            title="Edit timeline"
+            disabled={studio.busy || job.financialState === "refunded"}
+            onPress={() => timeline(job)}
           />
           <Button
             title="Remix"

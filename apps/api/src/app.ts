@@ -148,7 +148,7 @@ export function createApp(
                 .split("\n")[0]
             : "";
         const safe =
-          /^(Choose |Use |Wait |Upload |File |Image |Media |Source |This |That |Check |Quote |Credit |Not enough |Too many |Reference |Script |Invalid |Create your |Result |Remove |The provider could not verify|Generation pricing |Rendering provider is not configured|R2 storage is not configured|API backend credentials are not configured|Public API URL is not configured)/.test(
+          /^(Timeline |Export |Music |Clip |Choose |Use |Wait |Upload |File |Image |Media |Source |This |That |Check |Quote |Credit |Not enough |Too many |Reference |Script |Invalid |Create your |Result |Remove |The provider could not verify|Generation pricing |Rendering provider is not configured|R2 storage is not configured|API backend credentials are not configured|Public API URL is not configured)/.test(
             text,
           );
         set.status = safe ? 400 : 503;

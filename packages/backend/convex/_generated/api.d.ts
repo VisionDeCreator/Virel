@@ -29,6 +29,8 @@ import type * as studioAccess from "../studioAccess.js";
 import type * as studioScripts from "../studioScripts.js";
 import type * as studioValidators from "../studioValidators.js";
 import type * as tasks from "../tasks.js";
+import type * as timeline from "../timeline.js";
+import type * as timelineValidators from "../timelineValidators.js";
 
 import type {
   ApiFromModules,
@@ -58,6 +60,8 @@ declare const fullApi: ApiFromModules<{
   studioScripts: typeof studioScripts;
   studioValidators: typeof studioValidators;
   tasks: typeof tasks;
+  timeline: typeof timeline;
+  timelineValidators: typeof timelineValidators;
 }>;
 
 /**

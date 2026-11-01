@@ -73,6 +73,8 @@ export async function resolveInput(
       );
     if (input.mode === "remix") input.duration = Math.ceil(source.duration);
     // Preserve published lineage even when the owner selects the underlying asset.
+    if (!parent && source.timelineVideoId)
+      parent = await ctx.db.get(source.timelineVideoId);
     if (!parent && source.generated) {
       const job = await ctx.db
         .query("generationJobs")

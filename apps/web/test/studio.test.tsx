@@ -58,24 +58,26 @@ vi.mock("convex/react", async (importOriginal) => {
       args: { filter?: string; scope?: string },
     ) => ({
       results:
-        getFunctionName(fn) === "media:bases"
-          ? [
-              {
-                assetId: "source-1",
-                title: "Source clip",
-                creator: "creator",
-                duration: 5,
-                aspectRatio: "9:16",
-              },
-            ]
-          : fake.jobs.filter((value) => {
-              const job = value as { status: string };
-              return args.filter === "all"
-                ? job.status !== "failed"
-                : args.filter === "ready"
-                  ? job.status === "succeeded"
-                  : !["succeeded", "failed"].includes(job.status);
-            }),
+        getFunctionName(fn) === "timeline:list"
+          ? []
+          : getFunctionName(fn) === "media:bases"
+            ? [
+                {
+                  assetId: "source-1",
+                  title: "Source clip",
+                  creator: "creator",
+                  duration: 5,
+                  aspectRatio: "9:16",
+                },
+              ]
+            : fake.jobs.filter((value) => {
+                const job = value as { status: string };
+                return args.filter === "all"
+                  ? job.status !== "failed"
+                  : args.filter === "ready"
+                    ? job.status === "succeeded"
+                    : !["succeeded", "failed"].includes(job.status);
+              }),
       status: "Exhausted",
       loadMore: vi.fn(),
     }),

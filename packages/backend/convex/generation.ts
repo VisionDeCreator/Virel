@@ -125,7 +125,9 @@ export const saveQuote = internalMutation({
       Boolean(root?.royaltyEligible) &&
       Boolean(
         root?.creatorId !== userId ||
-        (parent && parent._id !== root?._id && parent.creatorId !== userId),
+        (parent &&
+          (parent.lineageDepth ?? (parent._id !== root?._id ? 1 : 0)) > 0 &&
+          parent.creatorId !== userId),
       );
     const rewardMessage = !parent
       ? "This creation has no remix beneficiaries."
@@ -242,7 +244,11 @@ export const start = mutation({
     ) {
       if (root.creatorId !== userId)
         beneficiaries.set(root.creatorId, ROOT_REWARD_USD_MICROS);
-      if (parent && parent._id !== root._id && parent.creatorId !== userId)
+      if (
+        parent &&
+        (parent.lineageDepth ?? (parent._id !== root._id ? 1 : 0)) > 0 &&
+        parent.creatorId !== userId
+      )
         beneficiaries.set(
           parent.creatorId,
           (beneficiaries.get(parent.creatorId) ?? 0) + PARENT_REWARD_USD_MICROS,
@@ -532,6 +538,10 @@ export const complete = internalMutation({
       jobId: job._id,
       rootVideoId: job.rootVideoId,
       parentVideoId: job.parentVideoId,
+      lineageDepth: job.parentVideoId
+        ? ((await ctx.db.get(job.parentVideoId))?.lineageDepth ??
+            (job.parentVideoId !== job.rootVideoId ? 1 : 0)) + 1
+        : 0,
       title: job.input.prompt.slice(0, 100),
       description: "",
       playbackUrl: "",

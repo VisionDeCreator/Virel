@@ -130,3 +130,26 @@ export {
   CopyObjectCommand,
   Upload,
 };
+
+export async function inspectAudio(key: string) {
+  const input = new Input({
+    source: new UrlSource(await readUrl(key)),
+    formats: ALL_FORMATS,
+  });
+  const timer = setTimeout(() => input.dispose(), 60000);
+  try {
+    const track = await input.getPrimaryAudioTrack();
+    const duration = await input.computeDuration();
+    if (
+      !track ||
+      !Number.isFinite(duration) ||
+      duration < 0.1 ||
+      duration > 600
+    )
+      throw new Error("Choose an audio track under 10 minutes.");
+    return { duration };
+  } finally {
+    clearTimeout(timer);
+    input.dispose();
+  }
+}

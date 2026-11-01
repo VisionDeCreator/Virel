@@ -1,9 +1,10 @@
+import type { Doc } from "./_generated/dataModel";
 import { enqueue } from "./tasks";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { internalMutation, internalQuery, query } from "./_generated/server";
 import { requireUser } from "./studioAccess";
-import { validateUpload } from "@virel/shared";
+import { validateUpload, validateEditorUpload } from "@virel/shared";
 export const list = query({
   args: {},
   handler: async (ctx) => {
@@ -14,14 +15,25 @@ export const list = query({
         .withIndex("by_userId", (q) => q.eq("userId", userId))
         .order("desc")
         .take(100)
-    ).filter((a) => a.status === "ready");
+    ).filter(
+      (a): a is Doc<"mediaAssets"> & { type: "image" | "video" } =>
+        a.status === "ready" && a.type !== "audio",
+    );
   },
 });
 export const createUpload = internalMutation({
-  args: { name: v.string(), contentType: v.string(), bytes: v.number() },
+  args: {
+    name: v.string(),
+    contentType: v.string(),
+    bytes: v.number(),
+    purpose: v.optional(v.literal("editor")),
+  },
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
-    const type = validateUpload(args.contentType, args.bytes);
+    const type =
+      args.purpose === "editor"
+        ? validateEditorUpload(args.contentType, args.bytes)
+        : validateUpload(args.contentType, args.bytes);
     const recent = await ctx.db
       .query("mediaAssets")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
@@ -80,8 +92,8 @@ export const seal = internalMutation({
     key: v.string(),
     token: v.string(),
     duration: v.optional(v.number()),
-    width: v.number(),
-    height: v.number(),
+    width: v.optional(v.number()),
+    height: v.optional(v.number()),
   },
   handler: async (ctx, { assetId, token, ...metadata }) => {
     const userId = await requireUser(ctx);
@@ -240,7 +252,11 @@ export const base = query({
       asset.duration > 15
     )
       return null;
-    const owns = asset.userId === userId && asset.generated;
+    const owns =
+      asset.userId === userId &&
+      (asset.generated || Boolean(asset.timelineVideoId));
+    if (owns && !video && asset.timelineVideoId)
+      video = await ctx.db.get(asset.timelineVideoId);
     if (owns && !video) {
       const job = await ctx.db
         .query("generationJobs")
@@ -314,7 +330,7 @@ export const bases = query({
           !asset.duration ||
           asset.duration < 4 ||
           asset.duration > 15 ||
-          (args.scope === "mine" && !asset.generated)
+          (args.scope === "mine" && !asset.generated && !asset.timelineVideoId)
         )
           return null;
         const creator = await ctx.db

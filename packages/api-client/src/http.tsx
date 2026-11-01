@@ -20,8 +20,22 @@ export function useApiUrl() {
   return useContext(ApiContext);
 }
 type Operations = {
+  "timeline:publish": {
+    args: {
+      exportId: Id<"timelineExports">;
+      title: string;
+      description: string;
+      remixEnabled: boolean;
+    };
+    result: string;
+  };
   "mediaActions:beginUpload": {
-    args: { name: string; contentType: string; bytes: number };
+    args: {
+      name: string;
+      contentType: string;
+      bytes: number;
+      purpose?: "editor";
+    };
     result: { assetId: string; url: string };
   };
   "mediaActions:finishUpload": {

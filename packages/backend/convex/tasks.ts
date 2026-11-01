@@ -104,6 +104,10 @@ export const commit = internalMutation({
   handler: async (ctx, args): Promise<any> => {
     const task = await assertLease(ctx, args.taskId, args.token);
     const allowed = {
+      "timeline:beginRender": internal.timeline.beginRender,
+      "timeline:progress": internal.timeline.progress,
+      "timeline:completeExport": internal.timeline.completeExport,
+      "timeline:failExport": internal.timeline.failExport,
       "generation:claimSubmission": internal.generation.claimSubmission,
       "generation:recordProvider": internal.generation.recordProvider,
       "generation:update": internal.generation.update,
@@ -115,7 +119,13 @@ export const commit = internalMutation({
     const ref = allowed[args.operation as keyof typeof allowed];
     if (
       !ref ||
-      (task.operation !== "cleanup" && args.args?.jobId !== task.jobId) ||
+      (task.operation !== "cleanup" &&
+        task.operation !== "timeline" &&
+        (args.args?.jobId !== task.jobId ||
+          !args.operation.startsWith("generation:"))) ||
+      (task.operation === "timeline" &&
+        (args.args?.exportId !== task.exportId ||
+          !args.operation.startsWith("timeline:"))) ||
       (task.operation === "cleanup" && !args.operation.startsWith("media:"))
     )
       throw new Error("Task operation unavailable.");

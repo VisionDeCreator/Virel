@@ -1,6 +1,7 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { authTables } from "@convex-dev/auth/server";
+import { timelineDocument } from "./timelineValidators";
 import { studioInput, jobStatus } from "./studioValidators";
 export default defineSchema({
   ...authTables,
@@ -47,8 +48,10 @@ export default defineSchema({
       v.literal("submit"),
       v.literal("poll"),
       v.literal("cleanup"),
+      v.literal("timeline"),
     ),
     jobId: v.optional(v.id("generationJobs")),
+    exportId: v.optional(v.id("timelineExports")),
     dedupeKey: v.string(),
     runAt: v.number(),
     leaseToken: v.optional(v.string()),
@@ -122,11 +125,41 @@ export default defineSchema({
   mediaGarbage: defineTable({ key: v.string(), deleteAfter: v.number() })
     .index("by_key", ["key"])
     .index("by_deleteAfter", ["deleteAfter"]),
+  timelineProjects: defineTable({
+    userId: v.id("users"),
+    title: v.string(),
+    revision: v.number(),
+    document: timelineDocument,
+    sourceVideoId: v.optional(v.id("videos")),
+    updatedAt: v.number(),
+  }).index("by_userId_and_updatedAt", ["userId", "updatedAt"]),
+  timelineExports: defineTable({
+    userId: v.id("users"),
+    projectId: v.id("timelineProjects"),
+    revision: v.number(),
+    document: timelineDocument,
+    status: v.union(
+      v.literal("queued"),
+      v.literal("rendering"),
+      v.literal("ready"),
+      v.literal("failed"),
+    ),
+    progress: v.number(),
+    attempts: v.number(),
+    key: v.optional(v.string()),
+    error: v.optional(v.string()),
+    assetId: v.optional(v.id("mediaAssets")),
+    videoId: v.optional(v.id("videos")),
+  })
+    .index("by_projectId_and_revision", ["projectId", "revision"])
+    .index("by_userId_and_status", ["userId", "status"]),
   mediaAssets: defineTable({
+    purpose: v.optional(v.literal("editor")),
+    timelineVideoId: v.optional(v.id("videos")),
     userId: v.id("users"),
     key: v.string(),
     name: v.string(),
-    type: v.union(v.literal("image"), v.literal("video")),
+    type: v.union(v.literal("image"), v.literal("video"), v.literal("audio")),
     contentType: v.string(),
     bytes: v.number(),
     status: v.union(
@@ -314,6 +347,8 @@ export default defineSchema({
     .index("by_userId_and_videoId", ["userId", "videoId"])
     .index("by_userId_and_updatedAt", ["userId", "updatedAt"]),
   videos: defineTable({
+    timelineProjectId: v.optional(v.id("timelineProjects")),
+    lineageDepth: v.optional(v.number()),
     likeCount: v.optional(v.number()),
     commentCount: v.optional(v.number()),
     creatorId: v.id("users"),

@@ -1,3 +1,4 @@
+import { validateEditorUpload } from "@virel/shared";
 import { v } from "convex/values";
 import { action } from "../runtime/operation";
 import { internal } from "../../../../packages/backend/convex/_generated/api";
@@ -6,6 +7,7 @@ import {
   uploadUrl,
   readUrl,
   inspectVideo,
+  inspectAudio,
   HeadObjectCommand,
   GetObjectCommand,
   CopyObjectCommand,
@@ -14,7 +16,12 @@ import {
 import { imageSize } from "image-size";
 import { fileTypeFromBuffer } from "file-type";
 export const beginUpload = action({
-  args: { name: v.string(), contentType: v.string(), bytes: v.number() },
+  args: {
+    name: v.string(),
+    contentType: v.string(),
+    bytes: v.number(),
+    purpose: v.optional(v.literal("editor")),
+  },
   handler: async (ctx, args): Promise<{ assetId: string; url: string }> => {
     storage();
     const assetId = await ctx.runMutation(internal.media.createUpload, args);
@@ -35,6 +42,8 @@ export const finishUpload = action({
     if (!token) return asset._id;
     const { client, bucket } = storage();
     try {
+      if (asset.purpose === "editor")
+        validateEditorUpload(asset.contentType, asset.bytes);
       const head = await client.send(
         new HeadObjectCommand({ Bucket: bucket, Key: asset.key }),
       );
@@ -65,26 +74,47 @@ export const finishUpload = action({
         );
         const bytes = await sample.Body!.transformToByteArray();
         const detected = await fileTypeFromBuffer(bytes);
-        if (!detected || detected.mime !== asset.contentType)
+        if (
+          !detected ||
+          (detected.mime !== asset.contentType &&
+            !(
+              ["audio/mp3", "audio/mpeg"].includes(asset.contentType) &&
+              detected.mime === "audio/mpeg"
+            ) &&
+            !(
+              ["audio/wav", "audio/x-wav"].includes(asset.contentType) &&
+              detected.mime === "audio/wav"
+            ) &&
+            !(
+              ["audio/mp4", "audio/x-m4a"].includes(asset.contentType) &&
+              ["audio/x-m4a", "video/mp4"].includes(detected.mime)
+            ))
+        )
           throw new Error(
             "File contents do not match the selected media type.",
           );
         const metadata =
           asset.type === "video"
-            ? await inspectVideo(key)
-            : (() => {
-                const size = imageSize(bytes);
-                if (
-                  !size.width ||
-                  !size.height ||
-                  size.width > 8192 ||
-                  size.height > 8192
-                )
-                  throw new Error(
-                    "Image dimensions must be at most 8,192 pixels.",
-                  );
-                return { width: size.width, height: size.height };
-              })();
+            ? await inspectVideo(
+                key,
+                asset.purpose === "editor" ? 0.1 : 4,
+                asset.purpose === "editor" ? 120 : 15,
+              )
+            : asset.type === "audio"
+              ? await inspectAudio(key)
+              : (() => {
+                  const size = imageSize(bytes);
+                  if (
+                    !size.width ||
+                    !size.height ||
+                    size.width > 8192 ||
+                    size.height > 8192
+                  )
+                    throw new Error(
+                      "Image dimensions must be at most 8,192 pixels.",
+                    );
+                  return { width: size.width, height: size.height };
+                })();
         const sealed = await ctx.runMutation(internal.media.seal, {
           assetId: asset._id,
           token,

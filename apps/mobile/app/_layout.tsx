@@ -58,6 +58,7 @@ function Navigation() {
                 view: undefined,
                 job: undefined,
                 source: undefined,
+                timeline: undefined,
                 asset: undefined,
                 retry: undefined,
               });

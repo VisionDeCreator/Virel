@@ -3,7 +3,7 @@ import { adminClient, createContext } from "./runtime/context";
 import { submit, poll } from "./services/generationActions";
 import { clean } from "./services/mediaCleanup";
 import { storage } from "./services/r2";
-import { providerConfig } from "./services/sume";
+import { renderExport } from "./services/timelineRender";
 const pause = (ms: number, signal: AbortSignal) =>
   new Promise<void>((resolve) => {
     if (signal.aborted) return resolve();
@@ -17,7 +17,6 @@ const pause = (ms: number, signal: AbortSignal) =>
   });
 export async function runWorker(signal: AbortSignal) {
   storage();
-  providerConfig();
   const client = adminClient();
   await client.query(internal.media.garbage, { before: 0 });
   console.log("Virel worker connected; processing durable development tasks.");
@@ -49,6 +48,8 @@ export async function runWorker(signal: AbortSignal) {
         }, 30000);
         try {
           if (task.operation === "cleanup") await clean.handler(ctx, {});
+          else if (task.operation === "timeline" && task.exportId)
+            await renderExport.handler(ctx, { exportId: task.exportId });
           else if (task.jobId)
             await (task.operation === "submit" ? submit : poll).handler(ctx, {
               jobId: task.jobId,

@@ -17,3 +17,4 @@ export { usePostReaction } from "./post-reaction";
 
 export type { FunctionReturnType } from "convex/server";
 export { useRewards } from "./rewards";
+export { useTimeline, type TimelineStorage } from "./timeline";
