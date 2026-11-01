@@ -1,3 +1,4 @@
+import { NativeRewards } from "../src/features/profile/Rewards";
 import { NativePublicProfile } from "../src/features/profile/PublicProfile";
 import { useState } from "react";
 import { Text, View } from "react-native";
@@ -105,7 +106,14 @@ function Account() {
     <Screen
       title={isAuthenticated ? "Create your profile" : "Your creative home"}
     >
-      {isAuthenticated ? <AccountEditor /> : <EmailSignIn />}
+      {isAuthenticated ? (
+        <>
+          <AccountEditor />
+          <NativeRewards />
+        </>
+      ) : (
+        <EmailSignIn />
+      )}
     </Screen>
   );
 }

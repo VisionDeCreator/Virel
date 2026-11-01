@@ -1,3 +1,4 @@
+import { Rewards } from "./Rewards";
 import { ProfileView } from "./ProfileView";
 import { NavLink, useParams } from "react-router-dom";
 import { useState, type FormEvent } from "react";
@@ -28,6 +29,7 @@ function OwnProfile() {
     <section className="profile">
       <h1>Create your profile</h1>
       <ProfileForm />
+      <Rewards />
     </section>
   );
 }
@@ -54,6 +56,7 @@ export function PublicProfile({ username }: { username: string }) {
           ? `${apiUrl}/avatars/${encodeURIComponent(profile.username)}?v=${profile.avatarVersion}`
           : undefined
       }
+      privateContent={profile.isOwner ? <Rewards /> : undefined}
       isAuthenticated={isAuthenticated}
       busy={busy}
       message={message}

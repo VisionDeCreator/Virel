@@ -76,6 +76,9 @@ export function useStudio(options: { draftStorage?: DraftStorage } = {}) {
     key: string;
     quoteId: Id<"generationQuotes">;
     credits: number;
+    surchargeCredits: number;
+    royaltyEligible: boolean;
+    rewardMessage: string;
     expiresAt: number;
     duration: number;
   } | null>(null);

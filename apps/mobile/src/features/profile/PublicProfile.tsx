@@ -1,3 +1,4 @@
+import { NativeRewards } from "./Rewards";
 import { useState } from "react";
 import { Image, Text, View, Share } from "react-native";
 import { Link } from "expo-router";
@@ -100,6 +101,7 @@ export function NativePublicProfile({ username }: { username: string }) {
           {message}
         </Text>
       )}
+      {profile.isOwner && <NativeRewards />}
       <Text accessibilityRole="header" style={styles.label}>
         Published videos
       </Text>

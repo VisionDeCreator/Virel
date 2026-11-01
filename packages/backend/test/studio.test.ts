@@ -70,15 +70,15 @@ async function setup() {
 }
 test("reserving, duplicate submission, and confirmed failure change balances exactly once", async () => {
   const { alice, t, quote } = await setup();
-  expect(quote.credits).toBe(130);
+  expect(quote.credits).toBe(145);
   expect(quote.duration).toBe(6);
   const requestId = "request-000000000001";
   const jobId = await alice.mutation(api.generation.start, {
     quoteId: quote.quoteId,
     requestId,
   });
-  expect((await alice.query(api.credits.balance))?.available).toBe(870);
-  expect((await alice.query(api.credits.balance))?.reserved).toBe(130);
+  expect((await alice.query(api.credits.balance))?.available).toBe(855);
+  expect((await alice.query(api.credits.balance))?.reserved).toBe(145);
   expect(
     await alice.mutation(api.generation.start, {
       quoteId: quote.quoteId,
@@ -124,7 +124,7 @@ test("settlement creates one private output and charges once, separate from publ
   await t.mutation(internal.generation.complete, output);
   await t.mutation(internal.generation.complete, output);
   await t.mutation(internal.generation.fail, { jobId, error: "Late failure" });
-  expect((await alice.query(api.credits.balance))?.available).toBe(870);
+  expect((await alice.query(api.credits.balance))?.available).toBe(855);
   expect((await alice.query(api.credits.balance))?.reserved).toBe(0);
   const [job] = await alice.query(api.generation.list);
   expect(job.status).toBe("succeeded");
@@ -230,7 +230,7 @@ test("uncertain submissions retain funds and cannot purchase another render", as
     status: "reconciliation_required",
     error: "Unknown submission",
   });
-  expect((await alice.query(api.credits.balance))?.reserved).toBe(130);
+  expect((await alice.query(api.credits.balance))?.reserved).toBe(145);
   await expect(
     alice.mutation(api.generation.resume, { jobId }),
   ).rejects.toThrow("operator reconciliation");
@@ -470,7 +470,7 @@ test("credit reservation atomically queues one worker task and expired leases ca
   ).toBe(false);
   const [job] = await alice.query(api.generation.list);
   expect(job.status).toBe("reconciliation_required");
-  expect((await alice.query(api.credits.balance))?.reserved).toBe(130);
+  expect((await alice.query(api.credits.balance))?.reserved).toBe(145);
 });
 
 test("poll tasks retain scheduling requested during their active lease", async () => {

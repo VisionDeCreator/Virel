@@ -1,5 +1,10 @@
 export const CREDITS_PER_USD = 1000;
-export const PRICING_VERSION = "v2";
+export const PRICING_VERSION = "v3";
+export const GENERATION_SURCHARGE_USD_MICROS = 15000;
+export const GENERATION_SURCHARGE_CREDITS = 15;
+export const ROYALTY_RULE_VERSION = "root-parent-v1";
+export const ROOT_REWARD_USD_MICROS = 10000;
+export const PARENT_REWARD_USD_MICROS = 5000;
 export const DEFAULT_BUFFER_BPS = 500;
 function integer(value: number, name: string) {
   if (!Number.isSafeInteger(value) || value < 0)
@@ -23,10 +28,11 @@ export function generationPrice(
   if (!cost || markup > 100000n || buffer > 10000n)
     throw new Error("Invalid generation pricing.");
   return {
-    credits: ceilRatio(
-      cost * (10000n + buffer) * (10000n + markup) * BigInt(CREDITS_PER_USD),
-      100000000000000n,
-    ),
+    credits:
+      ceilRatio(
+        cost * (10000n + buffer) * (10000n + markup) * BigInt(CREDITS_PER_USD),
+        100000000000000n,
+      ) + GENERATION_SURCHARGE_CREDITS,
     supplierMaximumUsdMicros: ceilRatio(cost * (10000n + buffer), 10000n),
   };
 }
@@ -46,9 +52,21 @@ export function creditEventLabel(kind: string) {
         reserve: "Credits reserved",
         charge: "Generation charged",
         release: "Credits returned",
+        refund: "Generation refunded",
         grant: "Credits added",
         migration: "Credit denomination updated",
       } as Record<string, string>
     )[kind] ?? kind
   );
+}
+
+export function formatRewardUsd(usdMicros: number) {
+  if (!Number.isSafeInteger(usdMicros))
+    throw new Error("Invalid reward amount.");
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 6,
+  }).format(usdMicros / 1000000);
 }

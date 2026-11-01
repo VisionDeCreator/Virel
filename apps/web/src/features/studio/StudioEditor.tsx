@@ -365,6 +365,11 @@ export function StudioEditor({
                 {studio.quote.credits.toLocaleString()} credits. Reserved when
                 you create; spent when your result is ready.
               </Notice>
+              <p className="generation-expectation">
+                Includes a $0.015 generation surcharge (
+                {studio.quote.surchargeCredits} credits).{" "}
+                {studio.quote.rewardMessage}
+              </p>
               <p>
                 Available after starting:{" "}
                 {Math.max(

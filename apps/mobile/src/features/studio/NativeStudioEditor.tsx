@@ -447,6 +447,11 @@ export function NativeStudioEditor({
               ready.
             </Text>
             <Text style={styles.text}>
+              Includes a $0.015 generation surcharge (
+              {studio.quote.surchargeCredits} credits).{" "}
+              {studio.quote.rewardMessage}
+            </Text>
+            <Text style={styles.text}>
               Available after starting:{" "}
               {Math.max(
                 0,

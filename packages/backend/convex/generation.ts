@@ -3,6 +3,11 @@ import {
   PRICING_VERSION,
   generationPrice,
   currentCredits,
+  GENERATION_SURCHARGE_USD_MICROS,
+  GENERATION_SURCHARGE_CREDITS,
+  ROYALTY_RULE_VERSION,
+  ROOT_REWARD_USD_MICROS,
+  PARENT_REWARD_USD_MICROS,
 } from "@virel/shared";
 import { assertCreditWrites, assertCurrentAccount } from "./creditPricing";
 import { v } from "convex/values";
@@ -12,12 +17,63 @@ import {
   mutation,
   internalQuery,
   internalMutation,
+  type MutationCtx,
 } from "./_generated/server";
 import { enqueue } from "./tasks";
 import { studioInput } from "./studioValidators";
 import { requireUser, resolveInput } from "./studioAccess";
 import { accountFor } from "./credits";
+import { settleRewards, reverseRewards } from "./rewards";
 import type { Id, Doc } from "./_generated/dataModel";
+// Convex can normalize object key order when persisting input. Compare values, not insertion order.
+function inputKey(input: unknown): string {
+  const canonical = (value: unknown): unknown =>
+    Array.isArray(value)
+      ? value.map(canonical)
+      : value && typeof value === "object"
+        ? Object.fromEntries(
+            Object.entries(value)
+              .filter(([, v]) => v !== undefined)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([k, v]) => [k, canonical(v)]),
+          )
+        : value;
+  return JSON.stringify(canonical(input));
+}
+type FundingKind = "purchased" | "promotional" | "mixed" | "insufficient";
+function fundingKind(
+  allocations: { kind: "purchased" | "promotional" }[],
+  remaining = 0,
+): FundingKind {
+  if (remaining || !allocations.length) return "insufficient";
+  return allocations.every((a) => a.kind === "purchased")
+    ? "purchased"
+    : allocations.every((a) => a.kind === "promotional")
+      ? "promotional"
+      : "mixed";
+}
+async function previewFunding(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  credits: number,
+) {
+  let remaining = credits;
+  const allocations: { kind: "purchased" | "promotional" }[] = [];
+  for await (const lot of ctx.db
+    .query("creditLots")
+    .withIndex("by_userId", (q) => q.eq("userId", userId))) {
+    const amount = Math.min(
+      remaining,
+      currentCredits(lot.available, lot.creditsPerUsd),
+    );
+    if (amount > 0) {
+      remaining -= amount;
+      allocations.push({ kind: lot.kind });
+    }
+    if (!remaining) break;
+  }
+  return fundingKind(allocations, remaining);
+}
 export const context = internalQuery({
   args: { input: studioInput },
   handler: async (ctx, { input }) => {
@@ -40,7 +96,12 @@ export const saveQuote = internalMutation({
   },
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
-    const { input } = await resolveInput(ctx, userId, args.input);
+    const { input, parent: resolvedParent } = await resolveInput(
+      ctx,
+      userId,
+      args.input,
+    );
+    const parent = input.mode === "remix" ? resolvedParent : null;
     await assertCreditWrites(ctx);
     if (args.creditsPerUsd !== CREDITS_PER_USD)
       throw new Error("Generation pricing must use 1,000 credits per USD.");
@@ -56,18 +117,44 @@ export const saveQuote = internalMutation({
     const credits = calculated.credits;
     if (!Number.isSafeInteger(credits) || credits <= 0 || credits > 1000000)
       throw new Error("Invalid generation quote.");
+    const funding = await previewFunding(ctx, userId, credits);
+    const rootId = parent?.rootVideoId ?? parent?._id;
+    const root = rootId ? await ctx.db.get(rootId) : null;
+    const royaltyEligible =
+      funding === "purchased" &&
+      Boolean(root?.royaltyEligible) &&
+      Boolean(
+        root?.creatorId !== userId ||
+        (parent && parent._id !== root?._id && parent.creatorId !== userId),
+      );
+    const rewardMessage = !parent
+      ? "This creation has no remix beneficiaries."
+      : funding !== "purchased"
+        ? "Only generations funded entirely with purchased credits earn creator rewards; promotional or mixed funding does not qualify."
+        : !root?.royaltyEligible
+          ? "This source is not eligible for creator rewards."
+          : !royaltyEligible
+            ? "Self-remix rewards are excluded."
+            : "This remix qualifies for creator rewards using your purchased credits.";
     const id = await ctx.db.insert("generationQuotes", {
       ...args,
       input,
-      inputKey: JSON.stringify(input),
+      inputKey: inputKey(input),
       userId,
       credits,
       pricingVersion: PRICING_VERSION,
+      surchargeUsdMicros: GENERATION_SURCHARGE_USD_MICROS,
+      royaltyRuleVersion: ROYALTY_RULE_VERSION,
+      fundingKind: funding,
+      royaltyEligible,
       expiresAt: Date.now() + 5 * 60000,
     });
     return {
       quoteId: id,
       credits,
+      surchargeCredits: GENERATION_SURCHARGE_CREDITS,
+      royaltyEligible,
+      rewardMessage,
       duration: input.duration,
       expiresAt: Date.now() + 5 * 60000,
     };
@@ -103,11 +190,18 @@ export const start = mutation({
     await assertCreditWrites(ctx);
     if (
       quote.pricingVersion !== PRICING_VERSION ||
-      quote.creditsPerUsd !== CREDITS_PER_USD
+      quote.creditsPerUsd !== CREDITS_PER_USD ||
+      quote.surchargeUsdMicros !== GENERATION_SURCHARGE_USD_MICROS ||
+      quote.royaltyRuleVersion !== ROYALTY_RULE_VERSION
     )
       throw new Error("Quote pricing changed. Review the new credit cost.");
-    const { input, parent } = await resolveInput(ctx, userId, quote.input);
-    if (JSON.stringify(input) !== quote.inputKey)
+    const { input, parent: resolvedParent } = await resolveInput(
+      ctx,
+      userId,
+      quote.input,
+    );
+    const parent = input.mode === "remix" ? resolvedParent : null;
+    if (inputKey(input) !== quote.inputKey)
       throw new Error("Source changed. Request a new quote.");
     const account = await accountFor(ctx, userId);
     assertCurrentAccount(account);
@@ -134,6 +228,11 @@ export const start = mutation({
       if (!remaining) break;
     }
     if (remaining) throw new Error("Credit funding needs reconciliation.");
+    const funding = fundingKind(allocations);
+    if (parent && funding !== quote.fundingKind)
+      throw new Error(
+        "Funding changed. Review the new quote and reward eligibility.",
+      );
     const beneficiaries = new Map<Id<"users">, number>();
     const rootId = parent?.rootVideoId ?? parent?._id;
     const root = rootId ? await ctx.db.get(rootId) : null;
@@ -141,13 +240,16 @@ export const start = mutation({
       allocations.every((a) => a.kind === "purchased") &&
       root?.royaltyEligible
     ) {
-      if (root.creatorId !== userId) beneficiaries.set(root.creatorId, 10000);
+      if (root.creatorId !== userId)
+        beneficiaries.set(root.creatorId, ROOT_REWARD_USD_MICROS);
       if (parent && parent._id !== root._id && parent.creatorId !== userId)
         beneficiaries.set(
           parent.creatorId,
-          (beneficiaries.get(parent.creatorId) ?? 0) + 5000,
+          (beneficiaries.get(parent.creatorId) ?? 0) + PARENT_REWARD_USD_MICROS,
         );
     }
+    if (parent && Boolean(beneficiaries.size) !== quote.royaltyEligible)
+      throw new Error("Reward eligibility changed. Review the new quote.");
     const jobId = await ctx.db.insert("generationJobs", {
       userId,
       input,
@@ -155,6 +257,9 @@ export const start = mutation({
       requestId: args.requestId,
       status: "reserved",
       credits: quote.credits,
+      surchargeUsdMicros: quote.surchargeUsdMicros,
+      royaltyRuleVersion: quote.royaltyRuleVersion,
+      fundingKind: funding,
       creditsPerUsd: CREDITS_PER_USD,
       financialState: "reserved",
       allocations,
@@ -459,12 +564,7 @@ export const complete = internalMutation({
       operationKey: `charge:${job._id}`,
       note: "Video completed (reserved credits spent)",
     });
-    for (const beneficiary of job.royaltyBeneficiaries)
-      await ctx.db.insert("royaltiesLedger", {
-        ...beneficiary,
-        jobId: job._id,
-        status: "pending",
-      });
+    await settleRewards(ctx, job);
     await ctx.db.patch(job._id, {
       status: "succeeded",
       financialState: "settled",
@@ -490,6 +590,7 @@ export const publish = internalMutation({
       !job ||
       job.userId !== userId ||
       job.status !== "succeeded" ||
+      job.financialState === "refunded" ||
       !job.videoId
     )
       throw new Error("Result unavailable.");
@@ -622,5 +723,63 @@ export const unpublish = mutation({
       status: "draft",
       remixEnabled: false,
     });
+  },
+});
+
+// Operator-only confirmed refund. Credit return and reward reversals commit together.
+export const refund = internalMutation({
+  args: { jobId: v.id("generationJobs"), reason: v.string() },
+  handler: async (ctx, args) => {
+    const reason = args.reason.trim();
+    if (!reason || reason.length > 500)
+      throw new Error("A refund reason is required.");
+    const job = await ctx.db.get(args.jobId);
+    if (!job) throw new Error("Generation unavailable.");
+    if (job.financialState === "refunded") return;
+    if (job.financialState !== "settled")
+      throw new Error("Only settled generations can be refunded.");
+    await assertCreditWrites(ctx);
+    const account = await accountFor(ctx, job.userId);
+    assertCurrentAccount(account);
+    const credits = currentCredits(job.credits, job.creditsPerUsd);
+    if (!Number.isSafeInteger(account.available + account.reserved + credits))
+      throw new Error("Credit balance exceeds the supported limit.");
+    const allocated = job.allocations.reduce(
+      (total, a) => total + currentCredits(a.credits, job.creditsPerUsd),
+      0,
+    );
+    if (!Number.isSafeInteger(allocated) || allocated !== credits)
+      throw new Error("Credit funding needs reconciliation.");
+    for (const allocation of job.allocations) {
+      const lot = await ctx.db.get(allocation.lotId);
+      if (!lot || lot.creditsPerUsd !== CREDITS_PER_USD)
+        throw new Error("Credit funding needs reconciliation.");
+      const available =
+        lot.available + currentCredits(allocation.credits, job.creditsPerUsd);
+      if (!Number.isSafeInteger(available))
+        throw new Error("Credit balance exceeds the supported limit.");
+      await ctx.db.patch(lot._id, { available });
+    }
+    await reverseRewards(ctx, job._id, reason);
+    await ctx.db.patch(account._id, { available: account.available + credits });
+    await ctx.db.insert("creditLedger", {
+      userId: job.userId,
+      jobId: job._id,
+      creditsPerUsd: CREDITS_PER_USD,
+      kind: "refund",
+      amount: credits,
+      operationKey: `refund:${job._id}`,
+      note: reason,
+    });
+    await ctx.db.patch(job._id, {
+      financialState: "refunded",
+      updatedAt: Date.now(),
+    });
+    if (job.videoId)
+      await ctx.db.patch(job.videoId, {
+        status: "hidden",
+        visibility: "private",
+        remixEnabled: false,
+      });
   },
 });

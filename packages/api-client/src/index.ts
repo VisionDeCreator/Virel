@@ -16,3 +16,4 @@ export { useApiUrl, useApiAction } from "./http";
 export { usePostReaction } from "./post-reaction";
 
 export type { FunctionReturnType } from "convex/server";
+export { useRewards } from "./rewards";

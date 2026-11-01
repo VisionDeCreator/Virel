@@ -146,6 +146,17 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .index("by_status_and_expiresAt", ["status", "expiresAt"]),
   generationQuotes: defineTable({
+    royaltyEligible: v.optional(v.boolean()),
+    surchargeUsdMicros: v.optional(v.number()),
+    royaltyRuleVersion: v.optional(v.string()),
+    fundingKind: v.optional(
+      v.union(
+        v.literal("purchased"),
+        v.literal("promotional"),
+        v.literal("mixed"),
+        v.literal("insufficient"),
+      ),
+    ),
     userId: v.id("users"),
     input: studioInput,
     inputKey: v.string(),
@@ -159,6 +170,16 @@ export default defineSchema({
     expiresAt: v.number(),
   }).index("by_userId", ["userId"]),
   generationJobs: defineTable({
+    surchargeUsdMicros: v.optional(v.number()),
+    royaltyRuleVersion: v.optional(v.string()),
+    fundingKind: v.optional(
+      v.union(
+        v.literal("purchased"),
+        v.literal("promotional"),
+        v.literal("mixed"),
+        v.literal("insufficient"),
+      ),
+    ),
     creditsPerUsd: v.optional(v.number()),
     userId: v.id("users"),
     input: studioInput,
@@ -170,6 +191,7 @@ export default defineSchema({
       v.literal("reserved"),
       v.literal("settled"),
       v.literal("released"),
+      v.literal("refunded"),
     ),
     allocations: v.array(
       v.object({
@@ -203,7 +225,44 @@ export default defineSchema({
     jobId: v.id("generationJobs"),
     usdMicros: v.number(),
     status: v.literal("pending"),
-  }).index("by_jobId", ["jobId"]),
+  })
+    .index("by_jobId", ["jobId"])
+    .index("by_userId", ["userId"]),
+  rewardAccounts: defineTable({
+    userId: v.id("users"),
+    pendingUsdMicros: v.number(),
+    availableUsdMicros: v.number(),
+    earnedUsdMicros: v.number(),
+    hidden: v.boolean(),
+    historySynced: v.boolean(),
+  }).index("by_userId", ["userId"]),
+  rewardEvents: defineTable({
+    occurredAt: v.number(),
+    userId: v.id("users"),
+    jobId: v.id("generationJobs"),
+    awardId: v.id("royaltiesLedger"),
+    kind: v.union(
+      v.literal("award"),
+      v.literal("release"),
+      v.literal("reversal"),
+    ),
+    usdMicros: v.number(),
+    operationKey: v.string(),
+    note: v.string(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_and_occurredAt", ["userId", "occurredAt"])
+    .index("by_operationKey", ["operationKey"]),
+  generationDistributions: defineTable({
+    jobId: v.id("generationJobs"),
+    kind: v.union(v.literal("settlement"), v.literal("reversal")),
+    surchargeUsdMicros: v.number(),
+    creatorUsdMicros: v.number(),
+    platformUsdMicros: v.number(),
+    fundingKind: v.string(),
+    royaltyRuleVersion: v.string(),
+    reason: v.optional(v.string()),
+  }).index("by_jobId_and_kind", ["jobId", "kind"]),
   follows: defineTable({
     followerId: v.id("users"),
     followingId: v.id("users"),

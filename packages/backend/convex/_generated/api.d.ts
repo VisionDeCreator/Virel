@@ -23,6 +23,7 @@ import type * as http from "../http.js";
 import type * as media from "../media.js";
 import type * as mediaCleanup from "../mediaCleanup.js";
 import type * as profiles from "../profiles.js";
+import type * as rewards from "../rewards.js";
 import type * as serviceAuth from "../serviceAuth.js";
 import type * as studioAccess from "../studioAccess.js";
 import type * as studioScripts from "../studioScripts.js";
@@ -51,6 +52,7 @@ declare const fullApi: ApiFromModules<{
   media: typeof media;
   mediaCleanup: typeof mediaCleanup;
   profiles: typeof profiles;
+  rewards: typeof rewards;
   serviceAuth: typeof serviceAuth;
   studioAccess: typeof studioAccess;
   studioScripts: typeof studioScripts;

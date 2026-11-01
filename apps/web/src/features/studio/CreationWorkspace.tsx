@@ -366,7 +366,8 @@ function VideoDetails({
               <h2>We couldn’t create this video.</h2>
               <p>Your prompt and settings are saved below.</p>
               <p>
-                {job.financialState === "released"
+                {job.financialState === "released" ||
+                job.financialState === "refunded"
                   ? "Your reserved credits were returned."
                   : "Check credit activity for the status of your reserved credits."}
               </p>
@@ -447,6 +448,7 @@ function VideoDetails({
                   Remix
                 </Button>
                 <Button
+                  disabled={job.financialState === "refunded"}
                   onClick={() => setPublishing(!publishing)}
                   aria-expanded={publishing}
                 >
@@ -457,7 +459,7 @@ function VideoDetails({
               </div>
             </>
           )}
-          {publishing && (
+          {publishing && job.financialState !== "refunded" && (
             <div className="panel">
               <PublishForm job={job} studio={studio} />
             </div>
@@ -471,7 +473,8 @@ function VideoDetails({
             </p>
             <p>
               {job.credits.toLocaleString()} credits{" "}
-              {job.financialState === "released"
+              {job.financialState === "released" ||
+              job.financialState === "refunded"
                 ? "returned"
                 : job.financialState === "settled"
                   ? "spent"

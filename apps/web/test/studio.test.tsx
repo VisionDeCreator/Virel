@@ -186,6 +186,9 @@ beforeEach(() => {
       .mockResolvedValue("https://storage.example/signed"),
     "generationActions:quote": vi.fn().mockResolvedValue({
       quoteId: "quote-1",
+      surchargeCredits: 15,
+      royaltyEligible: false,
+      rewardMessage: "This creation has no remix beneficiaries.",
       credits: 20,
       duration: 5,
       expiresAt: Date.now() + 300000,

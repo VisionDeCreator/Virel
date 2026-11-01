@@ -359,7 +359,8 @@ function NativeVideoDetails({
         <Panel>
           <Text style={local.status}>We couldn’t create this video.</Text>
           <Text style={styles.text}>
-            {job.financialState === "released"
+            {job.financialState === "released" ||
+            job.financialState === "refunded"
               ? "Your reserved credits were returned."
               : "Check credit activity for the status of your reserved credits."}
           </Text>
@@ -425,9 +426,10 @@ function NativeVideoDetails({
                   : "Publish…"
             }
             variant="secondary"
+            disabled={job.financialState === "refunded"}
             onPress={() => setPublishing(!publishing)}
           />
-          {publishing && (
+          {publishing && job.financialState !== "refunded" && (
             <Panel>
               <PublishForm job={job} studio={studio} />
             </Panel>
@@ -443,7 +445,8 @@ function NativeVideoDetails({
         </Text>
         <Text style={styles.text}>
           {job.credits.toLocaleString()} credits{" "}
-          {job.financialState === "released"
+          {job.financialState === "released" ||
+          job.financialState === "refunded"
             ? "returned"
             : job.financialState === "settled"
               ? "spent"

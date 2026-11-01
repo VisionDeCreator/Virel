@@ -15,6 +15,7 @@ export function ProfileView({
   onShare,
   message,
   children,
+  privateContent,
 }: {
   profile: PublicProfileData;
   avatarUrl?: string;
@@ -24,6 +25,7 @@ export function ProfileView({
   onShare: () => void;
   message: string;
   children: ReactNode;
+  privateContent?: ReactNode;
 }) {
   return (
     <section className="social-profile">
@@ -76,6 +78,7 @@ export function ProfileView({
         </div>
       </div>
       {message && <Notice>{message}</Notice>}
+      {profile.isOwner && privateContent}
       <h2 className="profile-video-heading">Published videos</h2>
       {children}
     </section>

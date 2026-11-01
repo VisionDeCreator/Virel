@@ -113,6 +113,8 @@ The remix workflow uses the selected video as a real generation input with user 
 
 Credits and earnings are separate ledgers. Track purchased and promotional funding through credit lots. Only generations funded entirely by purchased credits earn royalties. Promotional generations can create eligible platform originals but earn no royalty on that generation. Mixed funding does not qualify under this rule; display qualification before confirmation.
 
+Each new generation includes a fixed $0.015 surcharge (15 credits at 1,000 credits/USD), added after supplier buffer and markup. Eligible remix awards come from this amount; the platform retains any undistributed share, including the entire fee for originals. A confirmed failure returns the fee along with the generation reservation.
+
 Store USD earnings as integer microdollars: $0.01 is 10,000 and $0.005 is 5,000. Keep payment-provider currency units explicit and convert exactly at integration boundaries. Guard integer ranges. Wallet totals are maintained atomically with ledger entries and can be reconciled against history.
 
 | Successful paid generation                             | Royalty                                                               |

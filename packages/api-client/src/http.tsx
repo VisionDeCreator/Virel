@@ -37,6 +37,9 @@ type Operations = {
     result: {
       quoteId: Id<"generationQuotes">;
       credits: number;
+      surchargeCredits: number;
+      royaltyEligible: boolean;
+      rewardMessage: string;
       duration: number;
       expiresAt: number;
     };

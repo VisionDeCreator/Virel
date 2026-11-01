@@ -170,7 +170,7 @@ async function main() {
       const reviewed = await quote.handler(ctx, { input });
       const maximum =
         Math.ceil(
-          (reviewed.credits * 1000000 * 10000) /
+          ((reviewed.credits - reviewed.surchargeCredits) * 1000000 * 10000) /
             (1000 * (10000 + pricing().markupBps)),
         ) + 1;
       const spent = run.tests.reduce(

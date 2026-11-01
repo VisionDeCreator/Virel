@@ -10,15 +10,15 @@ import {
 const modules = import.meta.glob("../convex/**/*.{ts,js}");
 test("exact arithmetic rounds retail once and supports large intermediate products", () => {
   expect(generationPrice(500000)).toEqual({
-    credits: 683,
+    credits: 698,
     supplierMaximumUsdMicros: 525000,
   });
   expect(generationPrice(1)).toEqual({
-    credits: 1,
+    credits: 16,
     supplierMaximumUsdMicros: 2,
   });
   expect(generationPrice(999999999)).toEqual({
-    credits: 1365000,
+    credits: 1365015,
     supplierMaximumUsdMicros: 1049999999,
   });
   expect(() => generationPrice(-1)).toThrow();
@@ -132,7 +132,7 @@ test("migration refuses unresolved generations and funding mismatches", async ()
   ).rejects.toThrow("reconciliation");
   expect((await t.query(api.creditPricing.status)).updating).toBe(true);
 });
-test("version-one quotes cannot start under version-two pricing", async () => {
+test("pre-surcharge quotes cannot start under current pricing", async () => {
   const t = convexTest(schema, modules);
   const id = await t.run((ctx) => ctx.db.insert("users", {}));
   const quoteId = await t.run((ctx) =>
@@ -185,12 +185,12 @@ test("funding remains usable after more than one hundred depleted lots", async (
     markupBps: 3000,
     bufferBps: 500,
   });
-  expect(quote.credits).toBe(137);
+  expect(quote.credits).toBe(152);
   await user.mutation(api.generation.start, {
     quoteId: quote.quoteId,
     requestId: "many-lots-request-001",
   });
-  expect((await user.query(api.credits.balance))?.available).toBe(863);
+  expect((await user.query(api.credits.balance))?.available).toBe(848);
 });
 test("duplicate claims do not mark an active submission uncertain", async () => {
   const t = convexTest(schema, modules);

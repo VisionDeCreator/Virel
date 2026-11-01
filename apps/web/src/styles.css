@@ -1948,3 +1948,80 @@ summary {
   justify-items: center;
   gap: 20px;
 }
+
+.rewards-panel {
+  margin: 24px 0;
+}
+.rewards-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.rewards-heading h2 {
+  margin: 8px 0 20px;
+}
+.rewards-visibility {
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  background: var(--background);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.rewards-balances {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  margin: 0 0 20px;
+}
+.rewards-balances dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+.rewards-balances dd {
+  margin: 8px 0 0;
+  font-size: clamp(18px, 2vw, 28px);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.rewards-panel h3 {
+  margin-top: 28px;
+}
+.reward-history {
+  list-style: none;
+  padding: 0;
+}
+.reward-history li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+.reward-history time {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 6px;
+}
+.reward-history strong {
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 420px) {
+  .rewards-balances {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .rewards-balances > div {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .rewards-balances dd {
+    margin: 0;
+  }
+}

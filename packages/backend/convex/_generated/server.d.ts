@@ -31,6 +31,7 @@ type Env = {
   readonly CONVEX_CLOUD_URL: string;
   readonly CONVEX_SITE_URL: string;
   readonly API_PUBLIC_URL: string | undefined;
+  readonly REWARD_HOLD_HOURS: string | undefined;
   readonly WELCOME_CREDITS: string | undefined;
   readonly WELCOME_CREDITS_V2: string | undefined;
 };
