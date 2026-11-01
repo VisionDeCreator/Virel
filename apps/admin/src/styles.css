@@ -22,3 +22,92 @@ p {
 .eyebrow {
   color: var(--primary);
 }
+section {
+  background: var(--surface, #252522);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 28px;
+  margin: 24px 0;
+}
+form {
+  display: grid;
+  gap: 16px;
+  max-width: 620px;
+}
+label {
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+}
+input,
+textarea,
+select {
+  font: inherit;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--background);
+  color: var(--text);
+  min-width: 0;
+}
+textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+button {
+  cursor: pointer;
+  font: inherit;
+  border: 1px solid var(--border);
+  background: var(--primary);
+  color: #171713;
+  border-radius: 10px;
+  padding: 11px 18px;
+  margin: 4px 8px 4px 0;
+}
+button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+button[aria-pressed="false"] {
+  background: transparent;
+  color: var(--text);
+}
+article {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+article p {
+  margin: 6px 0;
+}
+.balance {
+  font-size: 24px;
+  color: var(--text);
+}
+.balance span {
+  font-size: 16px;
+  color: var(--muted);
+}
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+[role="alert"] {
+  color: #ffb2a0;
+  overflow-wrap: anywhere;
+}
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 4px;
+}
+@media (max-width: 600px) {
+  main {
+    padding: 24px 16px;
+  }
+  section {
+    padding: 20px;
+  }
+}

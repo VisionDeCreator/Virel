@@ -4,6 +4,44 @@ import { authTables } from "@convex-dev/auth/server";
 import { studioInput, jobStatus } from "./studioValidators";
 export default defineSchema({
   ...authTables,
+  users: defineTable({
+    ...authTables.users.validator.fields,
+    adminRole: v.optional(
+      v.union(v.literal("platform_admin"), v.literal("billing")),
+    ),
+  })
+    .index("email", ["email"])
+    .index("phone", ["phone"]),
+  adminAudit: defineTable({
+    creditsPerUsd: v.optional(v.number()),
+    actorUserId: v.optional(v.id("users")),
+    actorEmail: v.string(),
+    targetUserId: v.id("users"),
+    targetEmail: v.string(),
+    action: v.union(v.literal("admin.promote"), v.literal("credits.grant")),
+    reason: v.string(),
+    amount: v.optional(v.number()),
+    before: v.optional(v.number()),
+    after: v.optional(v.number()),
+    requestId: v.string(),
+    fingerprint: v.string(),
+  })
+    .index("by_actorUserId_and_requestId", ["actorUserId", "requestId"])
+    .index("by_targetUserId", ["targetUserId"])
+    .index("by_actorEmail", ["actorEmail"])
+    .index("by_targetEmail", ["targetEmail"])
+    .index("by_action", ["action"]),
+  loginChallenges: defineTable({
+    email: v.string(),
+    challengeHash: v.string(),
+    codeHash: v.string(),
+    expiresAt: v.number(),
+    attempts: v.number(),
+    delivered: v.boolean(),
+  })
+    .index("by_email", ["email"])
+    .index("by_challengeHash", ["challengeHash"])
+    .index("by_expiresAt", ["expiresAt"]),
   apiTasks: defineTable({
     operation: v.union(
       v.literal("submit"),
@@ -36,7 +74,27 @@ export default defineSchema({
     title: v.string(),
     input: studioInput,
   }).index("by_segmentId", ["segmentId"]),
+  creditPricingState: defineTable({
+    key: v.string(),
+    phase: v.union(
+      v.literal("lots"),
+      v.literal("accounts"),
+      v.literal("complete"),
+    ),
+    cursor: v.union(v.string(), v.null()),
+    startedAt: v.number(),
+    completedAt: v.optional(v.number()),
+  }).index("by_key", ["key"]),
+  creditMigrations: defineTable({
+    userId: v.id("users"),
+    fromRate: v.number(),
+    toRate: v.number(),
+    before: v.number(),
+    after: v.number(),
+    migratedAt: v.number(),
+  }).index("by_userId", ["userId"]),
   creditAccounts: defineTable({
+    creditsPerUsd: v.optional(v.number()),
     userId: v.id("users"),
     available: v.number(),
     reserved: v.number(),
@@ -44,12 +102,14 @@ export default defineSchema({
     welcomeGranted: v.boolean(),
   }).index("by_userId", ["userId"]),
   creditLots: defineTable({
+    creditsPerUsd: v.optional(v.number()),
     userId: v.id("users"),
     kind: v.union(v.literal("promotional"), v.literal("purchased")),
     available: v.number(),
     reserved: v.number(),
   }).index("by_userId", ["userId"]),
   creditLedger: defineTable({
+    creditsPerUsd: v.optional(v.number()),
     userId: v.id("users"),
     kind: v.string(),
     amount: v.number(),
@@ -94,9 +154,12 @@ export default defineSchema({
     creditsPerUsd: v.number(),
     markupBps: v.number(),
     pricingVersion: v.string(),
+    supplierEstimateUsdMicros: v.optional(v.number()),
+    bufferBps: v.optional(v.number()),
     expiresAt: v.number(),
   }).index("by_userId", ["userId"]),
   generationJobs: defineTable({
+    creditsPerUsd: v.optional(v.number()),
     userId: v.id("users"),
     input: studioInput,
     quoteId: v.id("generationQuotes"),
@@ -132,6 +195,7 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .index("by_userId_and_requestId", ["userId", "requestId"])
     .index("by_quoteId", ["quoteId"])
+    .index("by_financialState", ["financialState"])
     .index("by_outputAssetId", ["outputAssetId"])
     .index("by_status_and_updatedAt", ["status", "updatedAt"]),
   royaltiesLedger: defineTable({

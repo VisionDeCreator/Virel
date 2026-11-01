@@ -1,3 +1,4 @@
+import { creditEventLabel } from "@virel/shared";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Text, View, Switch, AppState, ActivityIndicator } from "react-native";
 import { Link, useLocalSearchParams, useFocusEffect } from "expo-router";
@@ -464,12 +465,21 @@ function Workspace() {
         {studio.quote ? (
           <>
             <Text style={styles.text}>
-              {studio.quote.duration}s · {studio.quote.credits} credits. Credits
-              are reserved now and spent when the result is ready. Promotional
-              funding does not earn royalties.
+              {studio.quote.duration}s · {studio.quote.credits.toLocaleString()}{" "}
+              credits. Credits are reserved now and spent when the result is
+              ready. Promotional funding does not earn royalties.
+            </Text>
+            <Text style={styles.text}>
+              Available after starting:{" "}
+              {Math.max(
+                0,
+                (studio.balance?.available ?? 0) - studio.quote.credits,
+              ).toLocaleString()}{" "}
+              credits. Quote expires at{" "}
+              {new Date(studio.quote.expiresAt).toLocaleTimeString()}.
             </Text>
             <Button
-              title={`Create video · ${studio.quote.credits} credits`}
+              title={`Create video · ${studio.quote.credits.toLocaleString()} credits`}
               disabled={
                 busy || (studio.balance?.available ?? 0) < studio.quote.credits
               }
@@ -483,8 +493,12 @@ function Workspace() {
           </>
         ) : (
           <Button
-            title="Review credit cost"
-            disabled={busy}
+            title={
+              studio.pricingUpdating
+                ? "Updating credit pricing…"
+                : "Review credit cost"
+            }
+            disabled={busy || studio.pricingUpdating}
             onPress={() => void studio.reviewCost()}
           />
         )}
@@ -590,8 +604,9 @@ function Workspace() {
         <Text style={styles.label}>Credit activity</Text>
         {studio.history?.map((event) => (
           <Text key={event._id} style={styles.text}>
-            {event.note} · {event.amount > 0 ? "+" : ""}
-            {event.amount} credits
+            {creditEventLabel(event.kind)}: {event.note} ·{" "}
+            {event.kind === "grant" || event.kind === "release" ? "+" : ""}
+            {Math.abs(event.amount).toLocaleString()} credits
           </Text>
         ))}
       </Panel>

@@ -25,7 +25,12 @@
     "setup:studio": "bun packages/backend/scripts/configure-studio.ts",
     "dev:worker": "bun run --cwd apps/worker dev",
     "check:studio-storage": "bun apps/api/src/check-storage.ts",
-    "test:studio": "STUDIO_STORAGE_ACCEPTANCE=1 playwright test --config playwright.auth.config.ts"
+    "test:studio": "STUDIO_STORAGE_ACCEPTANCE=1 playwright test --config playwright.auth.config.ts",
+    "admin:promote": "bun --no-env-file scripts/promote-admin.ts",
+    "test:admin": "playwright test --config playwright.admin.config.ts",
+    "test:admin:runtime": "playwright test --config playwright.admin-runtime.config.ts",
+    "credits:migrate": "bun --no-env-file scripts/migrate-credits.ts",
+    "check:generation": "bun --no-env-file apps/api/src/cli/check-generation.ts"
   },
   "devDependencies": {
     "typescript": "~5.9.3",

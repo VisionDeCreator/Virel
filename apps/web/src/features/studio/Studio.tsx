@@ -1,3 +1,4 @@
+import { creditEventLabel } from "@virel/shared";
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams, NavLink } from "react-router-dom";
 import {
@@ -181,7 +182,9 @@ function Workspace() {
         <p>Upload. Reimagine. Make it yours.</p>
       </div>
       <div className="credit-summary" aria-live="polite">
-        <strong>{studio.balance?.available ?? 0} credits available</strong>
+        <strong>
+          {(studio.balance?.available ?? 0).toLocaleString()} credits available
+        </strong>
         <span>{studio.balance?.reserved ?? 0} reserved for running videos</span>
       </div>
       <div className="studio-workspace">
@@ -467,10 +470,20 @@ function Workspace() {
           {studio.quote ? (
             <>
               <Notice>
-                {studio.quote.duration}s video · {studio.quote.credits} credits.
-                Reserved when you create; spent when your result is ready.
-                Promotional funding does not earn creator royalties.
+                {studio.quote.duration}s video ·{" "}
+                {studio.quote.credits.toLocaleString()} credits. Reserved when
+                you create; spent when your result is ready. Promotional funding
+                does not earn creator royalties.
               </Notice>
+              <p>
+                Available after starting:{" "}
+                {Math.max(
+                  0,
+                  (studio.balance?.available ?? 0) - studio.quote.credits,
+                ).toLocaleString()}{" "}
+                credits. Quote expires at{" "}
+                {new Date(studio.quote.expiresAt).toLocaleTimeString()}.
+              </p>
               <Button
                 variant="primary"
                 disabled={
@@ -479,7 +492,7 @@ function Workspace() {
                 }
                 onClick={() => void studio.generate(crypto.randomUUID())}
               >
-                Create video · {studio.quote.credits} credits
+                Create video · {studio.quote.credits.toLocaleString()} credits
               </Button>
               {(studio.balance?.available ?? 0) < studio.quote.credits && (
                 <Notice error>
@@ -490,10 +503,12 @@ function Workspace() {
           ) : (
             <Button
               variant="primary"
-              disabled={busy}
+              disabled={busy || studio.pricingUpdating}
               onClick={() => void studio.reviewCost()}
             >
-              Review credit cost
+              {studio.pricingUpdating
+                ? "Updating credit pricing…"
+                : "Review credit cost"}
             </Button>
           )}
           {studio.error && <Notice error>{studio.error}</Notice>}
@@ -617,10 +632,12 @@ function Workspace() {
         )}
         {studio.history?.map((event) => (
           <div className="credit-row" key={event._id}>
-            <span>{event.note}</span>
+            <span>
+              {creditEventLabel(event.kind)}: {event.note}
+            </span>
             <strong>
-              {event.amount > 0 ? "+" : ""}
-              {event.amount} credits
+              {event.kind === "grant" || event.kind === "release" ? "+" : ""}
+              {Math.abs(event.amount).toLocaleString()} credits
             </strong>
           </div>
         ))}

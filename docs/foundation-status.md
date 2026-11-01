@@ -66,3 +66,31 @@ New Create and Remix generations are limited to 4–15 seconds so newly created 
 ## API/worker migration — October 31, 2026
 
 Studio storage/provider operations moved out of Convex actions into Bun API services and a separate worker. Both clients route side effects through authenticated API requests. Convex retains metadata, subscriptions, durable task claims, and financial transactions. Upload completion claims and worker lease fencing cover concurrent completion and restart recovery. R2/provider credentials are no longer required in Convex. Live storage and integration results are recorded in studio-implementation.md.
+
+## Admin credit operations — October 31, 2026
+
+The admin shell now has verified administrator sign-in, exact-email user lookup, promotional credit grant review/confirmation, recent generation summaries, paginated credit history, and filtered audit history. Backend authorization, role checks, rate limits, safe-integer validation, atomic lot/account/ledger/audit updates, and request-ID fingerprint deduplication protect credit grants. The deployment-key-authorized `admin:promote` command follows Cinakey's operator structure and requires an existing verified unique account.
+
+Email verification uses Convex Auth codes and a protected API delivery bridge. Nodemailer follows Cinakey's SMTP environment/TLS/sender pattern; SMTP credentials stay in the Bun API environment. The `setup:email` command validates configuration and configures the bridge without printing secrets. Web, mobile, and admin support verification-code entry. Email delivery remains disabled until SMTP and a public HTTPS API origin are configured.
+
+The final schema/functions were deployed to the configured Virel development deployment. All workspace tests, typechecks, builds, and formatting checks passed. Backend coverage includes 33 tests; API coverage includes 20 tests. Six isolated admin browser checks passed across desktop/mobile widths, including lost-response grant retries, and both layouts were visually inspected. Verification tests intercept delivery; SMTP tests mock Nodemailer. Real email delivery, full live admin grant acceptance, and physical-device verification remain pending.
+
+The requested first administrator, `vision@galliun.com`, exists but is unverified. Promotion correctly refused it without changing roles. After configuring SMTP, run `setup:email`, restart the API, verify the account by signing in, then rerun `admin:promote`. See [admin setup](../deployments/admin/README.md).
+
+## Cinakey email-code alignment — October 31, 2026
+
+Supersedes the password-verification bridge described above. Virel now uses Cinakey's API-owned email-code sign-in structure on web, mobile, and admin. The API generates the six-digit code and random challenge, stores only hashes in Convex, sends Nodemailer SMTP, and marks accepted delivery. Convex consumes single-use challenges and preserves existing account IDs, balances, roles, and content. Five-attempt limits, ten-minute expiry, resend cooldown, email/IP/global limits, trusted proxy handling, and bounded cleanup are implemented. Password authentication, the internal email relay, the verification flag, and the setup:email command are removed.
+
+SMTP configuration and EMAIL_NOTIFICATIONS_ENABLED=true on the API are sufficient for email sending. Localhost API URLs work for local browser clients; SMTP credentials stay out of Convex. Existing email normalization is a paginated internal cutover operation, with ambiguous normalized accounts refusing sign-in rather than merging.
+
+The updated backend was deployed successfully to Virel development. Existing-email normalization completed with zero changes required. All workspace tests, typechecks, builds, and formatting checks passed; six desktop/mobile admin browser checks passed. The live email-code/session test passed against Convex using the loopback-only SMTP interceptor, covering independent sessions, profile synchronization, persistence, API authorization, and logout without sending real mail. Real SMTP delivery and physical-device acceptance remain pending sender/device configuration.
+
+## Generation credit pricing v2 — November 1, 2026
+
+Implemented and deployed 1,000-credit/USD pricing with exact rational arithmetic, one upward retail rounding, 30% default markup and a separate 5% supplier buffer. Quotes snapshot the rate/estimate/buffer/markup and expire after five minutes. The resumable legacy conversion preserved value by multiplying balances and funding lots by ten, retained original historical ledger units, and created migration audit records. The migration refused two pre-existing unknown submissions until their exact Sume idempotency keys and final refunded/zero-capture receipts were verified; those reservations were returned without purchasing replacement renders.
+
+Real acceptance completed Create and Remix generations with private output ingestion and exactly-once settlement. Customer charges were 1,263 and 1,365 credits; supplier captures were $0.93 and $1.00, totaling $1.93 within the approved $5 budget. Final acceptance balance was 7,372 of its 10,000 promotional test credits with zero reserved. No unresolved generations remained. The resumable acceptance state is kept in ignored .local/generation-acceptance.json; it contains job IDs and receipts, not credentials or signed URLs.
+
+Backend coverage includes 44 tests for accounting, currency migration, many funding lots, stale quotes, and concurrent worker claims. Workspace tests, typechecks and builds passed, as did six desktop/mobile admin browser checks. Physical-device acceptance and selling credit packages remain separate work.
+
+Both iOS and Android bundle exports passed after the pricing/UI update. An authenticated quote through the running API returned the expected 1,263-credit price without submitting another generation.

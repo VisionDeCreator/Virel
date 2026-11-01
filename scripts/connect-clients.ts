@@ -27,6 +27,7 @@ if (!url || !/^https:\/\/[a-z0-9-]+\.convex\.cloud$/.test(url))
   );
 for (const [path, key] of [
   ["apps/web/.env.local", "VITE_CONVEX_URL"],
+  ["apps/admin/.env.local", "VITE_CONVEX_URL"],
   ["apps/mobile/.env", "EXPO_PUBLIC_CONVEX_URL"],
   ["apps/api/.env", "CONVEX_URL"],
 ]) {
@@ -49,6 +50,7 @@ const apiUrl = (await rootEnv.exists())
   : "http://localhost:3101";
 for (const [path, key] of [
   ["apps/web/.env.local", "VITE_API_URL"],
+  ["apps/admin/.env.local", "VITE_API_URL"],
   ["apps/mobile/.env", "EXPO_PUBLIC_API_URL"],
 ]) {
   const file = Bun.file(resolve(root, path));

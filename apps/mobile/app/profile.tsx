@@ -8,6 +8,7 @@ import {
   useMutation,
   useConvexAuth,
   useAuthActions,
+  useEmailSignIn,
 } from "@virel/api-client";
 import { Button, Panel, Field } from "@virel/ui-native";
 import { Screen, styles } from "../src/components/Screen";
@@ -90,24 +91,8 @@ function Fields({
 }
 function Account() {
   const { isAuthenticated, isLoading } = useConvexAuth();
-  const { signIn, signOut } = useAuthActions();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [flow, setFlow] = useState("signIn");
+  const { signOut } = useAuthActions();
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  async function authenticate() {
-    setBusy(true);
-    setError("");
-    try {
-      await signIn("password", { email, password, flow });
-      setPassword("");
-    } catch {
-      setError("Unable to sign in. Check your details and try again.");
-    } finally {
-      setBusy(false);
-    }
-  }
   return (
     <Screen title={isAuthenticated ? "Your profile" : "Your creative home."}>
       {isLoading ? (
@@ -118,59 +103,99 @@ function Account() {
           <PublishedVideos />
           <Button
             title="Sign out"
-            onPress={() => {
+            onPress={() =>
               void signOut().catch(() =>
                 setError("Unable to sign out. Try again."),
-              );
-            }}
+              )
+            }
           />
         </>
       ) : (
-        <>
-          <Field
-            label="Email"
-            style={styles.input}
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            autoComplete="email"
-          />
-          <Field
-            label="Password"
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoCapitalize="none"
-          />
-          <Button
-            disabled={busy}
-            title={
-              busy
-                ? "Please wait…"
-                : flow === "signIn"
-                  ? "Sign in"
-                  : "Create account"
-            }
-            onPress={() => {
-              void authenticate();
-            }}
-          />
-          <Button
-            title={
-              flow === "signIn"
-                ? "New here? Create account"
-                : "Already have an account?"
-            }
-            onPress={() => setFlow(flow === "signIn" ? "signUp" : "signIn")}
-          />
-        </>
+        <EmailSignIn />
       )}
       <Text accessibilityLiveRegion="polite" style={styles.text}>
         {error}
       </Text>
     </Screen>
+  );
+}
+function EmailSignIn() {
+  const login = useEmailSignIn();
+  return (
+    <>
+      <Text style={styles.text}>
+        Sign in or create an account with an email code.
+      </Text>
+      <Field
+        label="Email"
+        style={styles.input}
+        value={login.email}
+        onChangeText={login.setEmail}
+        editable={!login.challenge}
+        autoCapitalize="none"
+        keyboardType="email-address"
+        autoComplete="email"
+      />
+      {login.challenge && (
+        <>
+          <Text style={styles.text}>
+            Enter the six-digit code sent to your email. It expires in 10
+            minutes.
+          </Text>
+          <Field
+            label="Verification code"
+            style={styles.input}
+            value={login.code}
+            onChangeText={(value) => login.setCode(value.replace(/\D/g, ""))}
+            keyboardType="number-pad"
+            maxLength={6}
+            autoComplete="one-time-code"
+          />
+        </>
+      )}
+      {login.expired && (
+        <Text style={styles.text}>
+          This code has expired. Request a new code.
+        </Text>
+      )}
+      <Button
+        disabled={
+          login.busy ||
+          (login.challenge
+            ? login.expired || login.code.length !== 6
+            : login.wait > 0)
+        }
+        title={
+          login.busy
+            ? "Please wait…"
+            : login.challenge
+              ? "Verify & sign in"
+              : login.wait
+                ? `Try again in ${login.wait}s`
+                : "Send sign-in code"
+        }
+        onPress={() =>
+          void (login.challenge ? login.verify() : login.request())
+        }
+      />
+      {login.challenge && (
+        <>
+          <Button
+            disabled={login.busy || login.wait > 0}
+            title={login.wait ? `Resend in ${login.wait}s` : "Resend code"}
+            onPress={() => void login.request()}
+          />
+          <Button
+            disabled={login.busy}
+            title="Use another email"
+            onPress={login.changeEmail}
+          />
+        </>
+      )}
+      <Text accessibilityLiveRegion="polite" style={styles.text}>
+        {login.error}
+      </Text>
+    </>
   );
 }
 export default function Profile() {

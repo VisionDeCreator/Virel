@@ -1,3 +1,10 @@
+import {
+  CREDITS_PER_USD,
+  PRICING_VERSION,
+  generationPrice,
+  currentCredits,
+} from "@virel/shared";
+import { assertCreditWrites, assertCurrentAccount } from "./creditPricing";
 import { v } from "convex/values";
 import {
   query,
@@ -27,16 +34,25 @@ export const saveQuote = internalMutation({
     supplierMaximumUsdMicros: v.number(),
     creditsPerUsd: v.number(),
     markupBps: v.number(),
+    supplierEstimateUsdMicros: v.optional(v.number()),
+    bufferBps: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
     const { input } = await resolveInput(ctx, userId, args.input);
-    const credits = Math.ceil(
-      (args.supplierMaximumUsdMicros *
-        (10000 + args.markupBps) *
-        args.creditsPerUsd) /
-        10000000000,
+    await assertCreditWrites(ctx);
+    if (args.creditsPerUsd !== CREDITS_PER_USD)
+      throw new Error("Generation pricing must use 1,000 credits per USD.");
+    const calculated = generationPrice(
+      args.supplierEstimateUsdMicros ?? args.supplierMaximumUsdMicros,
+      args.markupBps,
+      args.supplierEstimateUsdMicros === undefined
+        ? 0
+        : (args.bufferBps ?? 500),
     );
+    if (calculated.supplierMaximumUsdMicros !== args.supplierMaximumUsdMicros)
+      throw new Error("Supplier maximum does not match the quote.");
+    const credits = calculated.credits;
     if (!Number.isSafeInteger(credits) || credits <= 0 || credits > 1000000)
       throw new Error("Invalid generation quote.");
     const id = await ctx.db.insert("generationQuotes", {
@@ -45,7 +61,7 @@ export const saveQuote = internalMutation({
       inputKey: JSON.stringify(input),
       userId,
       credits,
-      pricingVersion: "v1",
+      pricingVersion: PRICING_VERSION,
       expiresAt: Date.now() + 5 * 60000,
     });
     return {
@@ -83,21 +99,29 @@ export const start = mutation({
     if (quotedJob) return quotedJob._id;
     if (quote.expiresAt < Date.now())
       throw new Error("Quote expired. Review the new credit cost.");
+    await assertCreditWrites(ctx);
+    if (
+      quote.pricingVersion !== PRICING_VERSION ||
+      quote.creditsPerUsd !== CREDITS_PER_USD
+    )
+      throw new Error("Quote pricing changed. Review the new credit cost.");
     const { input, parent } = await resolveInput(ctx, userId, quote.input);
     if (JSON.stringify(input) !== quote.inputKey)
       throw new Error("Source changed. Request a new quote.");
     const account = await accountFor(ctx, userId);
+    assertCurrentAccount(account);
     if (account.activeJobs >= 3)
       throw new Error("Wait for a current generation to finish.");
     if (account.available < quote.credits)
       throw new Error("Not enough credits for this video.");
-    const lots = await ctx.db
+    const lots = ctx.db
       .query("creditLots")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .take(100);
+      .withIndex("by_userId", (q) => q.eq("userId", userId));
     let remaining = quote.credits;
     const allocations: Doc<"generationJobs">["allocations"] = [];
-    for (const lot of lots) {
+    for await (const lot of lots) {
+      if (lot.creditsPerUsd !== CREDITS_PER_USD)
+        throw new Error("Credit funding needs denomination migration.");
       const credits = Math.min(remaining, lot.available);
       if (!credits) continue;
       allocations.push({ lotId: lot._id, credits, kind: lot.kind });
@@ -130,6 +154,7 @@ export const start = mutation({
       requestId: args.requestId,
       status: "reserved",
       credits: quote.credits,
+      creditsPerUsd: CREDITS_PER_USD,
       financialState: "reserved",
       allocations,
       supplierMaximumUsdMicros: quote.supplierMaximumUsdMicros,
@@ -149,6 +174,7 @@ export const start = mutation({
     });
     await ctx.db.insert("creditLedger", {
       userId,
+      creditsPerUsd: CREDITS_PER_USD,
       kind: "reserve",
       amount: -quote.credits,
       jobId,
@@ -171,6 +197,7 @@ export const list = query({
     return await Promise.all(
       jobs.map(async (job) => ({
         ...job,
+        credits: currentCredits(job.credits, job.creditsPerUsd),
         video: job.videoId ? await ctx.db.get(job.videoId) : null,
       })),
     );
@@ -213,12 +240,18 @@ export const claimSubmission = internalMutation({
   handler: async (ctx, { jobId }) => {
     const job = await ctx.db.get(jobId);
     if (!job || job.financialState !== "reserved") return false;
-    if (job.status === "submitting" && !job.providerJobId) {
+    // A duplicate claim can arrive while the first worker is still submitting.
+    // Leave that worker in control; the stale-job sweep handles actual interruptions.
+    if (
+      job.status === "submitting" &&
+      !job.providerJobId &&
+      Date.now() - job.updatedAt >= 300000
+    ) {
       await ctx.db.patch(jobId, {
         status: "reconciliation_required",
         updatedAt: Date.now(),
         error:
-          "Submission was interrupted. Reconcile the provider request before retrying.",
+          "Submission lease expired. Reconcile the provider request before retrying.",
       });
       return false;
     }
@@ -291,6 +324,7 @@ export const fail = internalMutation({
     await ctx.db.insert("creditLedger", {
       userId: job.userId,
       jobId,
+      creditsPerUsd: job.creditsPerUsd ?? 100,
       kind: "release",
       amount: job.credits,
       operationKey: `release:${jobId}`,
@@ -361,6 +395,7 @@ export const complete = internalMutation({
     await ctx.db.insert("creditLedger", {
       userId: job.userId,
       jobId: job._id,
+      creditsPerUsd: job.creditsPerUsd ?? 100,
       kind: "charge",
       amount: -job.credits,
       operationKey: `charge:${job._id}`,

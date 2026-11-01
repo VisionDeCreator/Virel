@@ -41,6 +41,10 @@ export function useStudioScripts(
   } | null>(null);
   const hydrated = useRef<string | null>(null);
   const revision = useRef(0);
+  // Reactive query results can lag behind a mutation when switching modes.
+  const confirmed = useRef(
+    new Map<string, NonNullable<typeof segments>[number]>(),
+  );
   const savedKey = useRef("");
   const selected = useRef<Partial<Record<"create" | "remix", string>>>({});
   const modeDrafts = useRef<Partial<Record<"create" | "remix", StudioInput>>>(
@@ -62,6 +66,10 @@ export function useStudioScripts(
     segment: NonNullable<typeof segments>[number],
     preserveNewDraft = false,
   ) {
+    const latest = confirmed.current.get(segment._id);
+    if (latest && latest.revision > segment.revision) segment = latest;
+    preserveNewDraft = preserveNewDraft && segment.revision === 0;
+    confirmed.current.set(segment._id, segment);
     hydrated.current = segment._id;
     setRecovery(null);
     setSegmentId(segment._id);
@@ -133,7 +141,15 @@ export function useStudioScripts(
       (segment) => segment._id === selected.current[mode],
     );
     const segment = remembered ?? segments[0];
-    if (hydrated.current !== segment._id)
+    if (
+      hydrated.current === segment._id &&
+      !saving.current &&
+      segment.revision > revision.current &&
+      payloadKey(current.current.input, current.current.title) ===
+        savedKey.current
+    ) {
+      hydrate(segment);
+    } else if (hydrated.current !== segment._id)
       hydrate(
         segment,
         segment.revision === 0 &&
@@ -169,6 +185,14 @@ export function useStudioScripts(
               storage.removeItem(`virel.script.${snapshot.segmentId}`),
             )
             .catch(() => {});
+        const previous = confirmed.current.get(snapshot.segmentId);
+        if (previous)
+          confirmed.current.set(snapshot.segmentId, {
+            ...previous,
+            input: serverInput(snapshot.input),
+            title: snapshot.title,
+            revision: nextRevision,
+          });
         revision.current = nextRevision;
         savedKey.current = key;
         setError("");

@@ -14,9 +14,20 @@ if (!Number.isInteger(port) || port < 1 || port > 65535)
   throw new Error("PORT must be between 1 and 65535");
 createApp({
   convexUrl: Bun.env.CONVEX_URL,
-  webOrigins: (Bun.env.STUDIO_WEB_ORIGINS ?? "http://localhost:5173")
-    .split(",")
-    .map((value) => value.trim()),
+  // Keep browser origins explicit; admin development ports must match AUTH_WEB_ORIGINS.
+  webOrigins: [
+    ...new Set(
+      [
+        ...(Bun.env.STUDIO_WEB_ORIGINS ?? "http://localhost:5173").split(","),
+        ...(
+          Bun.env.AUTH_WEB_ORIGINS ??
+          "http://localhost:5173,http://localhost:5174"
+        ).split(","),
+      ]
+        .map((value) => value.trim())
+        .filter(Boolean),
+    ),
+  ],
 }).listen({
   port,
   hostname: Bun.env.HOST ?? "127.0.0.1",

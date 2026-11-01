@@ -12,3 +12,6 @@ apps/mobile/ios/
 apps/mobile/android/
 test-results/
 playwright-report/
+
+# Local paid acceptance receipts and resumable job identifiers.
+.local/generation-acceptance*.json

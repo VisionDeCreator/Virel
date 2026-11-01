@@ -4,93 +4,116 @@ import {
   useQuery,
   useMutation,
   useAuthActions,
+  useEmailSignIn,
   useConvexAuth,
 } from "@virel/api-client";
 import { Button, Panel, Avatar, Field, TextArea, Notice } from "@virel/ui";
 export function Profile() {
   const { isAuthenticated, isLoading } = useConvexAuth();
-  const { signIn, signOut } = useAuthActions();
+  const { signOut } = useAuthActions();
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [flow, setFlow] = useState("signIn");
-  async function authenticate(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setBusy(true);
-    setError("");
-    const data = new FormData(event.currentTarget);
-    data.set("flow", flow);
-    try {
-      await signIn("password", data);
-    } catch {
-      setError("Unable to sign in. Check your details and try again.");
-    } finally {
-      setBusy(false);
-    }
-  }
   if (isLoading) return <Notice>Checking your session…</Notice>;
-  if (isAuthenticated)
-    return (
-      <section className="profile">
-        <ProfileForm />
-        <PublishedVideos />
-        <Button
-          variant="ghost"
-          onClick={() => {
-            void signOut().catch(() =>
-              setError("Unable to sign out. Try again."),
-            );
-          }}
-        >
-          Sign out
-        </Button>
-        {error && <Notice error>{error}</Notice>}
-      </section>
-    );
+  if (!isAuthenticated) return <EmailSignIn />;
+  return (
+    <section className="profile">
+      <ProfileForm />
+      <PublishedVideos />
+      <Button
+        variant="ghost"
+        onClick={() =>
+          void signOut().catch(() => setError("Unable to sign out. Try again."))
+        }
+      >
+        Sign out
+      </Button>
+      {error && <Notice error>{error}</Notice>}
+    </section>
+  );
+}
+function EmailSignIn() {
+  const login = useEmailSignIn();
   return (
     <section className="profile">
       <span className="eyebrow">YOUR CREATIVE HOME</span>
-      <h1>{flow === "signIn" ? "Welcome back." : "Make your mark."}</h1>
-      <p>One account for Virel on web and mobile.</p>
+      <h1>{login.challenge ? "Check your email." : "Welcome to Virel."}</h1>
+      <p>Sign in or create an account with an email code.</p>
       <Panel>
-        <form onSubmit={authenticate}>
-          <Field
-            label="Email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            required
-          />
-          <Field
-            label="Password"
-            name="password"
-            type="password"
-            minLength={8}
-            autoComplete={
-              flow === "signIn" ? "current-password" : "new-password"
-            }
-            required
-          />
-          <Button type="submit" variant="primary" disabled={busy}>
-            {busy
-              ? "Please wait…"
-              : flow === "signIn"
-                ? "Sign in"
-                : "Create account"}
-          </Button>
-        </form>
-        <Button
-          variant="ghost"
-          disabled={busy}
-          onClick={() => {
-            setFlow(flow === "signIn" ? "signUp" : "signIn");
-            setError("");
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void (login.challenge ? login.verify() : login.request());
           }}
         >
-          {flow === "signIn"
-            ? "New here? Create an account"
-            : "Already have an account?"}
-        </Button>
-        {error && <Notice error>{error}</Notice>}
+          <Field
+            label="Email"
+            type="email"
+            required
+            autoComplete="email"
+            value={login.email}
+            readOnly={!!login.challenge}
+            onChange={(event) => login.setEmail(event.target.value)}
+          />
+          {login.challenge && (
+            <>
+              <p>
+                Enter the six-digit code sent to {login.challenge.email}. It
+                expires in 10 minutes.
+              </p>
+              <Field
+                label="Verification code"
+                required
+                autoComplete="one-time-code"
+                inputMode="numeric"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                value={login.code}
+                onChange={(event) =>
+                  login.setCode(event.target.value.replace(/\D/g, ""))
+                }
+              />
+            </>
+          )}
+          {login.expired && (
+            <Notice error>This code has expired. Request a new code.</Notice>
+          )}
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={
+              login.busy ||
+              (login.challenge
+                ? login.expired || login.code.length !== 6
+                : login.wait > 0)
+            }
+          >
+            {login.busy
+              ? "Please wait…"
+              : login.challenge
+                ? "Verify & sign in"
+                : login.wait
+                  ? `Try again in ${login.wait}s`
+                  : "Send sign-in code"}
+          </Button>
+        </form>
+        {login.challenge && (
+          <>
+            <Button
+              variant="ghost"
+              disabled={login.busy || login.wait > 0}
+              onClick={() => void login.request()}
+            >
+              {login.wait ? `Resend in ${login.wait}s` : "Resend code"}
+            </Button>
+            <Button
+              variant="ghost"
+              disabled={login.busy}
+              onClick={login.changeEmail}
+            >
+              Use another email
+            </Button>
+          </>
+        )}
+        {login.error && <Notice error>{login.error}</Notice>}
       </Panel>
     </section>
   );

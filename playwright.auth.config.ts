@@ -17,7 +17,7 @@ if (!convexUrl || !/^https:\/\/[a-z0-9-]+\.convex\.cloud$/.test(convexUrl)) {
 }
 export default defineConfig({
   testDir: "./tests/auth",
-  timeout: 90_000,
+  timeout: 150_000,
   workers: 1,
   retries: 0,
   expect: { timeout: 20_000 },
@@ -40,7 +40,7 @@ export default defineConfig({
       reuseExistingServer: false,
     },
     {
-      command: "bun run dev:api",
+      command: "bun --no-env-file apps/api/test/auth-server.ts",
       url: "http://127.0.0.1:3190/health",
       env: { PORT: "3190", HOST: "127.0.0.1", CONVEX_URL: convexUrl },
       reuseExistingServer: false,

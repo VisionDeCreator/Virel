@@ -31,6 +31,7 @@ export function useStudio(options: { draftStorage?: DraftStorage } = {}) {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const balance = useQuery(api.credits.balance);
+  const pricingStatus = useQuery(api.creditPricing.status);
   const history = useQuery(api.credits.history);
   const assets = useQuery(api.media.list);
   const jobs = useQuery(api.generation.list);
@@ -236,6 +237,7 @@ export function useStudio(options: { draftStorage?: DraftStorage } = {}) {
     setError,
     message,
     balance,
+    pricingUpdating: pricingStatus?.updating ?? false,
     history,
     assets,
     jobs,

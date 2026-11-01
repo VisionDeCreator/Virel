@@ -8,7 +8,12 @@
  * @module
  */
 
+import type * as admin from "../admin.js";
+import type * as adminLimits from "../adminLimits.js";
 import type * as auth from "../auth.js";
+import type * as authEmail from "../authEmail.js";
+import type * as authOtp from "../authOtp.js";
+import type * as creditPricing from "../creditPricing.js";
 import type * as credits from "../credits.js";
 import type * as crons from "../crons.js";
 import type * as feed from "../feed.js";
@@ -31,7 +36,12 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  admin: typeof admin;
+  adminLimits: typeof adminLimits;
   auth: typeof auth;
+  authEmail: typeof authEmail;
+  authOtp: typeof authOtp;
+  creditPricing: typeof creditPricing;
   credits: typeof credits;
   crons: typeof crons;
   feed: typeof feed;
@@ -76,4 +86,5 @@ export declare const internal: FilterApi<
 
 export declare const components: {
   workpool: import("@convex-dev/workpool/_generated/component.js").ComponentApi<"workpool">;
+  rateLimiter: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiter">;
 };

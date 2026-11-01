@@ -25,7 +25,7 @@ async function setup() {
   const bob = t.withIdentity({ subject: `${bobId}|bob-session` });
   await t.mutation(internal.credits.grant, {
     userId: aliceId,
-    credits: 100,
+    credits: 1000,
     operationKey: "alice-grant",
   });
   const assetIds = await t.run(async (ctx) => {
@@ -63,22 +63,22 @@ async function setup() {
   const quote = await alice.mutation(internal.generation.saveQuote, {
     input,
     supplierMaximumUsdMicros: 100000,
-    creditsPerUsd: 100,
+    creditsPerUsd: 1000,
     markupBps: 3000,
   });
   return { t, alice, bob, aliceId, bobId, input, quote, assetIds };
 }
 test("reserving, duplicate submission, and confirmed failure change balances exactly once", async () => {
   const { alice, t, quote } = await setup();
-  expect(quote.credits).toBe(13);
+  expect(quote.credits).toBe(130);
   expect(quote.duration).toBe(6);
   const requestId = "request-000000000001";
   const jobId = await alice.mutation(api.generation.start, {
     quoteId: quote.quoteId,
     requestId,
   });
-  expect((await alice.query(api.credits.balance))?.available).toBe(87);
-  expect((await alice.query(api.credits.balance))?.reserved).toBe(13);
+  expect((await alice.query(api.credits.balance))?.available).toBe(870);
+  expect((await alice.query(api.credits.balance))?.reserved).toBe(130);
   expect(
     await alice.mutation(api.generation.start, {
       quoteId: quote.quoteId,
@@ -99,7 +99,7 @@ test("reserving, duplicate submission, and confirmed failure change balances exa
     jobId,
     error: "Duplicate failure",
   });
-  expect((await alice.query(api.credits.balance))?.available).toBe(100);
+  expect((await alice.query(api.credits.balance))?.available).toBe(1000);
   expect((await alice.query(api.credits.balance))?.reserved).toBe(0);
   expect(
     (await alice.query(api.credits.history)).filter(
@@ -124,7 +124,7 @@ test("settlement creates one private output and charges once, separate from publ
   await t.mutation(internal.generation.complete, output);
   await t.mutation(internal.generation.complete, output);
   await t.mutation(internal.generation.fail, { jobId, error: "Late failure" });
-  expect((await alice.query(api.credits.balance))?.available).toBe(87);
+  expect((await alice.query(api.credits.balance))?.available).toBe(870);
   expect((await alice.query(api.credits.balance))?.reserved).toBe(0);
   const [job] = await alice.query(api.generation.list);
   expect(job.status).toBe("succeeded");
@@ -171,7 +171,7 @@ test("quotes and assets belong to their owner; removed permissions block new rem
   const remixQuote = await alice.mutation(internal.generation.saveQuote, {
     input: { ...input, sourceVideoId: videoId },
     supplierMaximumUsdMicros: 100000,
-    creditsPerUsd: 100,
+    creditsPerUsd: 1000,
     markupBps: 3000,
   });
   await t.run((ctx) => ctx.db.patch(videoId, { remixEnabled: false }));
@@ -181,7 +181,7 @@ test("quotes and assets belong to their owner; removed permissions block new rem
       requestId: "request-permission-race",
     }),
   ).rejects.toThrow("not available");
-  expect((await alice.query(api.credits.balance))?.available).toBe(100);
+  expect((await alice.query(api.credits.balance))?.available).toBe(1000);
 });
 test("expired quotes and insufficient funds cannot create jobs", async () => {
   const { t, alice, quote } = await setup();
@@ -197,7 +197,7 @@ test("expired quotes and insufficient funds cannot create jobs", async () => {
   await t.run((ctx) =>
     ctx.db.patch(quote.quoteId, {
       expiresAt: Date.now() + 10000,
-      credits: 1000,
+      credits: 10000,
     }),
   );
   await expect(
@@ -225,7 +225,7 @@ test("uncertain submissions retain funds and cannot purchase another render", as
     status: "reconciliation_required",
     error: "Unknown submission",
   });
-  expect((await alice.query(api.credits.balance))?.reserved).toBe(13);
+  expect((await alice.query(api.credits.balance))?.reserved).toBe(130);
   await expect(
     alice.mutation(api.generation.resume, { jobId }),
   ).rejects.toThrow("operator reconciliation");
@@ -237,10 +237,10 @@ test("welcome allocation and operator grants are idempotent", async () => {
   await alice.mutation(api.credits.initialize, {});
   await t.mutation(internal.credits.grant, {
     userId: aliceId,
-    credits: 100,
+    credits: 1000,
     operationKey: "alice-grant",
   });
-  expect((await alice.query(api.credits.balance))?.available).toBe(150);
+  expect((await alice.query(api.credits.balance))?.available).toBe(1500);
 });
 test("prompt references and media limits fail before provider submission", () => {
   expect(() =>
@@ -348,7 +348,7 @@ test("purchased-funded remix snapshots two beneficiaries and settles pending roy
   const remixQuote = await alice.mutation(internal.generation.saveQuote, {
     input: { ...input, sourceVideoId: parent },
     supplierMaximumUsdMicros: 100000,
-    creditsPerUsd: 100,
+    creditsPerUsd: 1000,
     markupBps: 3000,
   });
   const jobId = await alice.mutation(api.generation.start, {
@@ -391,6 +391,7 @@ test("balance supports anonymous sessions and signed-in users without a credit a
     reserved: 0,
     activeJobs: 0,
     welcomeGranted: false,
+    creditsPerUsd: 1000,
   });
 });
 
@@ -409,7 +410,7 @@ test("Create reference videos accept 15 seconds and reject longer existing asset
     alice.mutation(internal.generation.saveQuote, {
       input: createInput,
       supplierMaximumUsdMicros: 100000,
-      creditsPerUsd: 100,
+      creditsPerUsd: 1000,
       markupBps: 3000,
     }),
   ).resolves.toBeDefined();
@@ -420,7 +421,7 @@ test("Create reference videos accept 15 seconds and reject longer existing asset
     alice.mutation(internal.generation.saveQuote, {
       input: createInput,
       supplierMaximumUsdMicros: 100000,
-      creditsPerUsd: 100,
+      creditsPerUsd: 1000,
       markupBps: 3000,
     }),
   ).rejects.toThrow("reference video between 4 and 15 seconds");
@@ -464,7 +465,7 @@ test("credit reservation atomically queues one worker task and expired leases ca
   ).toBe(false);
   const [job] = await alice.query(api.generation.list);
   expect(job.status).toBe("reconciliation_required");
-  expect((await alice.query(api.credits.balance))?.reserved).toBe(13);
+  expect((await alice.query(api.credits.balance))?.reserved).toBe(130);
 });
 
 test("poll tasks retain scheduling requested during their active lease", async () => {

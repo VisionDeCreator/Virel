@@ -52,7 +52,7 @@ test("estimates validate model, currency, and integer supplier cost", async () =
       ),
     ),
   );
-  expect(await estimate("model", {})).toBe(105000);
+  expect(await estimate("model", {})).toBe(100000);
   vi.stubGlobal(
     "fetch",
     vi.fn().mockResolvedValue(
@@ -168,4 +168,38 @@ test("the provider submission boundary enforces the 15-second cap and old drafts
   expect(generationDurations).toEqual(
     Array.from({ length: 12 }, (_, i) => i + 4),
   );
+});
+test("documented funding refusals and refunded submissions are definite non-charges", async () => {
+  provider();
+  for (const [status, code] of [
+    [402, "insufficient_funds"],
+    [503, "provider_submission_failed"],
+    [429, "queue_full"],
+  ] as const) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            error: { code, message: "private upstream diagnostics" },
+          }),
+          { status },
+        ),
+      ),
+    );
+    await expect(request("/generate", {})).rejects.toMatchObject({
+      definite: true,
+    });
+  }
+  vi.stubGlobal(
+    "fetch",
+    vi
+      .fn()
+      .mockResolvedValue(
+        new Response("unknown upstream failure", { status: 503 }),
+      ),
+  );
+  await expect(request("/generate", {})).rejects.toMatchObject({
+    definite: false,
+  });
 });

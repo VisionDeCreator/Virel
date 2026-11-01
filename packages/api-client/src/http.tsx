@@ -16,6 +16,9 @@ export function ApiProvider({
     </ApiContext.Provider>
   );
 }
+export function useApiUrl() {
+  return useContext(ApiContext);
+}
 type Operations = {
   "mediaActions:beginUpload": {
     args: { name: string; contentType: string; bytes: number };

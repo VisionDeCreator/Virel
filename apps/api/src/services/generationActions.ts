@@ -1,3 +1,4 @@
+import { generationPrice } from "@virel/shared";
 import { v } from "convex/values";
 import { action, internalAction } from "../runtime/operation";
 import { internal } from "../../../../packages/backend/convex/_generated/api";
@@ -39,14 +40,21 @@ export const quote = action({
       context.references.map((a) => readUrl(a!.key)),
     );
     const payload = buildRequest(context.input, source, images);
-    const supplierMaximumUsdMicros = await estimate(
+    const supplierEstimateUsdMicros = await estimate(
       payload.model,
       payload.body,
+    );
+    const price = pricing();
+    const { supplierMaximumUsdMicros } = generationPrice(
+      supplierEstimateUsdMicros,
+      price.markupBps,
+      price.bufferBps,
     );
     return await ctx.runMutation(internal.generation.saveQuote, {
       input: context.input,
       supplierMaximumUsdMicros,
-      ...pricing(),
+      supplierEstimateUsdMicros,
+      ...price,
     });
   },
 });

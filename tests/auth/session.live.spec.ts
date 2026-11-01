@@ -3,28 +3,43 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-test("real signup, cross-session profile sync, API authorization, persistence and logout", async ({
+test("real email-code signup, cross-session profile sync, API authorization, persistence and logout", async ({
   page,
   browser,
   request,
 }) => {
   const suffix = randomUUID().replaceAll("-", "").slice(0, 14);
   const email = `virel-e2e-${suffix}@example.invalid`;
-  const password = `${randomUUID()}Aa9!`;
   const username = `e2e_${suffix}`;
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto("/profile");
-  await page
-    .getByRole("button", { name: "New here? Create an account" })
-    .click();
-  await page.getByRole("textbox", { name: "Email", exact: true }).fill(email);
-  await page.getByLabel("Password", { exact: true }).fill(password);
-  await page
-    .getByRole("button", { name: "Create account", exact: true })
-    .click();
+  async function login(target: Page) {
+    await target.goto("http://localhost:5190/profile");
+    await target
+      .getByRole("textbox", { name: "Email", exact: true })
+      .fill(email);
+    await target
+      .getByRole("button", { name: "Send sign-in code", exact: true })
+      .click();
+    await expect(
+      target.getByRole("textbox", { name: "Verification code", exact: true }),
+    ).toBeVisible();
+    const response = await request.get(
+      `http://127.0.0.1:3190/__test/email?email=${encodeURIComponent(email)}`,
+    );
+    const code = (await response.json()).code;
+    if (typeof code !== "string" || !/^\d{6}$/.test(code))
+      throw new Error("Fixture SMTP did not capture a code");
+    await target
+      .getByRole("textbox", { name: "Verification code", exact: true })
+      .fill(code);
+    await target
+      .getByRole("button", { name: "Verify & sign in", exact: true })
+      .click();
+  }
+  await login(page);
   await expect(
     page.getByRole("textbox", { name: "Username", exact: true }),
   ).toBeVisible();
@@ -45,12 +60,7 @@ test("real signup, cross-session profile sync, API authorization, persistence an
   const context = await browser.newContext();
   try {
     const second = await context.newPage();
-    await second.goto("http://localhost:5190/profile");
-    await second
-      .getByRole("textbox", { name: "Email", exact: true })
-      .fill(email);
-    await second.getByLabel("Password", { exact: true }).fill(password);
-    await second.getByRole("button", { name: "Sign in", exact: true }).click();
+    await login(second);
     await expect(
       second.getByRole("heading", { name: "Virel Auth Test", exact: true }),
     ).toBeVisible();
@@ -200,11 +210,11 @@ test("real signup, cross-session profile sync, API authorization, persistence an
 
     await page.getByRole("button", { name: "Sign out", exact: true }).click();
     await expect(
-      page.getByRole("heading", { name: "Welcome back.", exact: true }),
+      page.getByRole("heading", { name: "Welcome to Virel.", exact: true }),
     ).toBeVisible();
     await page.reload();
     await expect(
-      page.getByRole("heading", { name: "Welcome back.", exact: true }),
+      page.getByRole("heading", { name: "Welcome to Virel.", exact: true }),
     ).toBeVisible();
     await expect(
       second.getByRole("heading", { name: "Virel Synced Test", exact: true }),

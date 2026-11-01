@@ -13,7 +13,7 @@ import {
 const modules = import.meta.glob("../convex/**/*.{ts,js}");
 const settings = {
   supplierMaximumUsdMicros: 100000,
-  creditsPerUsd: 100,
+  creditsPerUsd: 1000,
   markupBps: 3000,
 };
 test("Create accepts no media and a reference video without deriving output duration", async () => {

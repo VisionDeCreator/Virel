@@ -1,3 +1,4 @@
+import { CREDITS_PER_USD } from "@virel/shared";
 const env = process.env;
 import {
   compileRemix,
@@ -35,11 +36,25 @@ export async function request(
     signal: AbortSignal.timeout(45000),
     redirect: "error",
   });
-  if (!response.ok)
+  if (!response.ok) {
+    const errorBody = (await response.json().catch(() => null)) as {
+      error?: { code?: unknown };
+    } | null;
+    const code =
+      typeof errorBody?.error?.code === "string" ? errorBody.error.code : "";
+    // Sume documents these refusals as uncharged or fully refunded. Unknown 5xx/network outcomes remain uncertain.
+    const refused = [
+      "provider_submission_failed",
+      "provider_capacity_exceeded",
+      "provider_not_configured",
+      "queue_full",
+      "rate_limited",
+    ].includes(code);
     throw new ProviderFailure(
-      [400, 401, 403, 404, 422].includes(response.status),
+      [400, 401, 402, 403, 404, 422].includes(response.status) || refused,
       `Rendering service returned HTTP ${response.status}.`,
     );
+  }
   const envelope = (await response.json()) as {
     data?: Record<string, unknown>;
   };
@@ -109,20 +124,18 @@ export async function estimate(model: string, input: unknown) {
     amount <= 0
   )
     throw new Error("The provider could not verify a generation price.");
-  // Keep the accepted supplier maximum separate from retail credits.
-  return Math.ceil(amount * 1.05);
+  return amount;
 }
 export function pricing() {
-  const creditsPerUsd = Number(env.CREDITS_PER_USD ?? "100");
+  const creditsPerUsd = Number(env.CREDITS_PER_USD ?? String(CREDITS_PER_USD));
   const markupBps = Number(env.GENERATION_MARKUP_BPS ?? "3000");
   if (
     !Number.isSafeInteger(creditsPerUsd) ||
-    creditsPerUsd < 1 ||
-    creditsPerUsd > 100000 ||
+    creditsPerUsd !== CREDITS_PER_USD ||
     !Number.isSafeInteger(markupBps) ||
     markupBps < 0 ||
     markupBps > 100000
   )
     throw new Error("Generation pricing is not configured correctly.");
-  return { creditsPerUsd, markupBps };
+  return { creditsPerUsd, markupBps, bufferBps: 500 };
 }

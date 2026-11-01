@@ -7,6 +7,8 @@
     "scripts/**/*.ts",
     "playwright.config.ts",
     "tests/**/*.ts",
-    "playwright.auth.config.ts"
+    "playwright.auth.config.ts",
+    "playwright.admin.config.ts",
+    "playwright.admin-runtime.config.ts"
   ]
 }

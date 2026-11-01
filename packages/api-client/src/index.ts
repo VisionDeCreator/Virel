@@ -10,3 +10,4 @@ export { useAuthActions, useAuthToken } from "@convex-dev/auth/react";
 
 export type { Id, Doc } from "@virel/backend";
 export { useStudio } from "./studio";
+export { useEmailSignIn } from "./email-otp";

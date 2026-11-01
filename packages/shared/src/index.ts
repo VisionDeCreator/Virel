@@ -33,3 +33,4 @@ export const durations = [
   { value: "10", label: "10 seconds" },
 ] as const;
 export * from "./studio";
+export * from "./pricing";

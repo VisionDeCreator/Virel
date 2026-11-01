@@ -1,3 +1,8 @@
+import {
+  requestEmailOtp,
+  readEmailRequest,
+  authClientAddress,
+} from "./services/authEmail";
 import { Elysia } from "elysia";
 import { ConvexHttpClient } from "convex/browser";
 import { v } from "convex/values";
@@ -48,6 +53,35 @@ export function createApp(
           headers: set.headers as HeadersInit,
         });
     })
+    .post(
+      "/auth/email/request",
+      async ({ request, server }) => {
+        const origin = request.headers.get("origin");
+        if (origin && !(config.webOrigins ?? []).includes(origin))
+          return Response.json(
+            { message: "Origin not allowed" },
+            { status: 403, headers: { "Cache-Control": "no-store" } },
+          );
+        let email: unknown;
+        try {
+          email = await readEmailRequest(request);
+        } catch {
+          return Response.json(
+            { message: "Enter a valid email address." },
+            { status: 400, headers: { "Cache-Control": "no-store" } },
+          );
+        }
+        return requestEmailOtp(
+          createContext(),
+          email,
+          authClientAddress(
+            request,
+            server?.requestIP(request)?.address ?? "unknown",
+          ),
+        );
+      },
+      { parse: "none" },
+    )
     .get("/health", () => ({ service: "virel-api", status: "ok" }))
     .get("/v1/me", async ({ request }) => {
       try {
@@ -114,7 +148,7 @@ export function createApp(
                 .split("\n")[0]
             : "";
         const safe =
-          /^(Choose |Use |Wait |Upload |File |Image |Media |Source |This |That |Check |Quote |Not enough |Too many |Reference |Script |Invalid |Create your |Result |Remove |The provider could not verify|Generation pricing |Rendering provider is not configured|R2 storage is not configured|API backend credentials are not configured|Public API URL is not configured)/.test(
+          /^(Choose |Use |Wait |Upload |File |Image |Media |Source |This |That |Check |Quote |Credit |Not enough |Too many |Reference |Script |Invalid |Create your |Result |Remove |The provider could not verify|Generation pricing |Rendering provider is not configured|R2 storage is not configured|API backend credentials are not configured|Public API URL is not configured)/.test(
             text,
           );
         set.status = safe ? 400 : 503;

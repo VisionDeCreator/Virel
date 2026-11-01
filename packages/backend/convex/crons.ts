@@ -13,4 +13,10 @@ crons.interval(
   internal.media.queueCleanup,
   {},
 );
+crons.interval(
+  "clean expired login challenges",
+  { minutes: 10 },
+  internal.authOtp.cleanup,
+  {},
+);
 export default crons;

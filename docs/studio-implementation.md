@@ -18,9 +18,9 @@ Signed-in owners receive private preview/download links. Provider source links a
 
 ## Credits and generation
 
-The database contains accounts, promotional/purchased lots, an append-only ledger, immutable price quotes, generation jobs, media assets, and pending royalty entries. No public function grants purchased credits. Operator promotional grants have idempotency keys. The optional welcome allocation runs once per account and defaults to zero if unconfigured; local templates propose 100 promotional credits.
+The database contains accounts, promotional/purchased lots, an append-only ledger, immutable price quotes, generation jobs, media assets, and pending royalty entries. No public function grants purchased credits. Operator promotional grants have idempotency keys. The optional welcome allocation runs once per account and defaults to zero if unconfigured; local templates propose 1,000 promotional credits through WELCOME_CREDITS_V2.
 
-Quotes expire after five minutes. Pricing is versioned with a snapshot of the supplier maximum, credits per USD, and markup. A free supplier estimate includes 5% headroom. Defaults are 100 credits/USD and 30% markup. Credits are integers. Supplier charges use integer microdollars.
+Quotes expire after five minutes. Pricing is versioned with a snapshot of the supplier maximum, credits per USD, and markup. A free supplier estimate includes 5% headroom. Defaults are 1,000 credits/USD and 30% markup. Credits are integers. Supplier charges use integer microdollars.
 
 Job acceptance atomically validates ownership/source permissions, reserves funding lots, creates the job, and enqueues a durable Bun worker task. Duplicate operation IDs or reuse of a quote return the existing job. Accounts allow at most three unresolved jobs. Submission checks the supplier price again and uses a stable provider idempotency key. Provider rejection releases credits; unknown submission outcomes retain them for operator reconciliation.
 
@@ -81,3 +81,23 @@ The database/task migration was deployed to development `nautical-goat-396`. The
 Virel's local API now uses port 3101 to avoid Cinakey's port 3001. The current Virel web origin on port 5175 is included in API CORS, and R2 CORS for both configured local origins passed. Physical-device acceptance and paid end-to-end provider rendering remain separate checks.
 
 Final migration checks: 50 automated tests, workspace typechecks, builds, and formatting passed. The local API is healthy on port 3101, the running web client points to that API, and the Bun worker connected successfully. No generation jobs were pending at worker startup.
+
+## Credit denomination and pricing v2 — November 1, 2026
+
+New generation quotes use 1,000 Virel credits per USD, a 5% supplier buffer, and a configurable markup (30% default). Supplier estimates stay in integer microdollars. BigInt rational arithmetic computes the retail amount with one upward rounding; supplier headroom is calculated separately. The accepted quote stores its original estimate, supplier maximum, buffer, rate, markup, pricing version, exact input, and five-minute expiry. A changed model/input needs another quote; legacy v1 quotes are rejected at start. The submission recheck compares the current raw supplier estimate against the accepted supplier ceiling, rather than adding the buffer twice.
+
+The cutover pauses new credit mutations and refuses unresolved generations. It converts legacy accounts and lots by 10× in resumable transaction batches, verifies each account's funding total, and records creditMigrations audit entries. Account/lot currency markers prevent double conversion. Historical credit ledger and admin audit records retain their stored units, while queries return normalized current values. Historical job costs are also displayed in current units. Old welcome-credit configuration is interpreted at its legacy 100-credit/USD scale; set WELCOME_CREDITS_V2 in Convex for an explicit new-scale allocation.
+
+Credit reservation, confirmation, release, and idempotency remain transactional. Funding selection now iterates past depleted lots instead of failing after the first 100 records. Both clients show quoted credits, available balance after acceptance, expiration, and distinct reservation/charge/return activity. Admin generation summaries include provider IDs, supplier ceilings, actual captured USD, financial state, and pricing snapshots.
+
+Sume's free live estimate confirmed Seedance 2.5 at 4 seconds/720p for $0.9248, producing a 1,263-credit customer quote. Model metadata confirmed the selected resolution, aspect ratio, references, and duration support. Sume's documented non-charged/refunded refusal codes are distinguished from unknown network/5xx outcomes. The latter keep reservations rather than purchasing replacement renders.
+
+Two pre-existing Virel submissions without recorded provider IDs were matched by their exact Sume idempotency keys. Their final receipts confirmed failed status, full refunds, and zero captured cost. Provider IDs were attached and the reserved credits returned before migration. No Cinakey jobs were modified.
+
+### Live pricing acceptance
+
+The v2 migration completed on Virel development and verified legacy account/lot consistency. Real Create and Remix generations both completed, were copied into private R2 storage, and settled exactly once. Create charged 1,263 credits with $0.93 captured by Sume; Remix charged 1,365 credits with $1.00 captured. Total supplier spend was $1.93 against the approved $5 limit. The labeled acceptance account finished at 7,372 available credits from its 10,000-credit fixture grant, with zero reserved and one charge event per job. No unresolved jobs remained after acceptance.
+
+A live concurrency race was also addressed: a duplicate claim during a fresh submission now returns without marking the active worker interrupted. A claim after the five-minute submission lease window still enters reconciliation; unknown submission outcomes never trigger a replacement purchase. Tests cover fresh concurrent claims and expired-lease fencing.
+
+Final verification also passed an authenticated free quote through the actual API on port 3101 (1,263 credits), all workspace tests/typechecks/builds, six admin desktop/mobile browser checks, formatting, and iOS/Android bundle exports. Device interaction/playback acceptance still requires physical devices. The final live credit state had migration phase complete and no outstanding reservations.

@@ -181,6 +181,9 @@ test("Studio requires authentication before exposing upload and generation contr
 });
 test("source, prompt, and reference reach the quote; accepted cost gates generation", async () => {
   const user = await prepare();
+  expect(
+    screen.getByText(/Available after starting:\s*80 credits/),
+  ).toBeTruthy();
   expect(fake.operations["generationActions:quote"]).toHaveBeenCalledWith({
     input: expect.objectContaining({
       sourceAssetId: "source-1",
@@ -527,4 +530,133 @@ test("upload feedback tracks preparation, byte progress, verification, and failu
   expect(
     screen.queryByRole("progressbar", { name: "Media upload progress" }),
   ).toBeNull();
+});
+
+test("returning to Remix uses the confirmed revision while its query is stale", async () => {
+  const revisions = new Map<string, number>();
+  fake.operations["studioScripts:save"].mockImplementation(
+    async ({ segmentId, expectedRevision }) => {
+      const actual = revisions.get(segmentId) ?? 0;
+      if (actual !== expectedRevision)
+        throw new Error("This script changed in another session.");
+      revisions.set(segmentId, actual + 1);
+      // Deliberately leave the reactive list behind the mutation response.
+      return actual + 1;
+    },
+  );
+  open();
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: "Remix" }));
+  await user.type(
+    screen.getByRole("textbox", { name: "What would you change?" }),
+    "Keep my Remix edits",
+  );
+  await user.click(screen.getByRole("button", { name: "Create" }));
+  await user.click(screen.getByRole("button", { name: "Remix" }));
+  expect(
+    (
+      screen.getByRole("textbox", {
+        name: "What would you change?",
+      }) as HTMLTextAreaElement
+    ).value,
+  ).toBe("Keep my Remix edits");
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "Saved source video" }),
+    "source-1",
+  );
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "Add saved reference image" }),
+    "image-1",
+  );
+  await user.click(screen.getByRole("button", { name: "Review credit cost" }));
+  await waitFor(() =>
+    expect(fake.operations["generationActions:quote"]).toHaveBeenCalledWith({
+      input: expect.objectContaining({
+        sourceAssetId: "source-1",
+        scriptVersion: 2,
+        prompt: "Keep my Remix edits",
+      }),
+    }),
+  );
+  expect(revisions.get("remix-segment")).toBe(2);
+});
+
+test("a clean script follows a newer server revision before loading a source", async () => {
+  const view = open();
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: "Remix" }));
+  fake.segments.remix = [
+    {
+      ...fake.segments.remix[0],
+      revision: 4,
+      input: {
+        ...defaultStudioInput,
+        mode: "remix",
+        prompt: "Updated elsewhere",
+      },
+    },
+  ];
+  view.rerender(
+    <MemoryRouter>
+      <Studio connected />
+    </MemoryRouter>,
+  );
+  await waitFor(() =>
+    expect(
+      (
+        screen.getByRole("textbox", {
+          name: "What would you change?",
+        }) as HTMLTextAreaElement
+      ).value,
+    ).toBe("Updated elsewhere"),
+  );
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "Saved source video" }),
+    "source-1",
+  );
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "Add saved reference image" }),
+    "image-1",
+  );
+  await user.click(screen.getByRole("button", { name: "Review credit cost" }));
+  expect(fake.operations["studioScripts:save"]).toHaveBeenCalledWith(
+    expect.objectContaining({ expectedRevision: 4 }),
+  );
+});
+
+test("unsaved local edits cannot overwrite a newer script from another session", async () => {
+  const view = open();
+  const user = userEvent.setup();
+  await user.type(
+    screen.getByRole("textbox", { name: "Script" }),
+    "My local edits",
+  );
+  fake.segments.create = [
+    {
+      ...fake.segments.create[0],
+      revision: 4,
+      input: { ...defaultStudioInput, prompt: "Changed elsewhere" },
+    },
+  ];
+  fake.operations["studioScripts:save"].mockRejectedValue(
+    new Error(
+      "This script changed in another session. Reload the segment before saving.",
+    ),
+  );
+  view.rerender(
+    <MemoryRouter>
+      <Studio connected />
+    </MemoryRouter>,
+  );
+  expect(
+    (screen.getByRole("textbox", { name: "Script" }) as HTMLTextAreaElement)
+      .value,
+  ).toBe("My local edits");
+  await user.click(screen.getByRole("button", { name: "Review credit cost" }));
+  await waitFor(() =>
+    expect(fake.operations["studioScripts:save"]).toHaveBeenCalledWith(
+      expect.objectContaining({ expectedRevision: 0 }),
+    ),
+  );
+  expect(fake.operations["generationActions:quote"]).not.toHaveBeenCalled();
 });
