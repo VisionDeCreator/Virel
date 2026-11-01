@@ -1,3 +1,4 @@
+import { NativePublicProfile } from "../src/features/profile/PublicProfile";
 import { useState } from "react";
 import { Text, View } from "react-native";
 import { Link } from "expo-router";
@@ -13,7 +14,7 @@ import {
 import { Button, Panel, Field } from "@virel/ui-native";
 import { Screen, styles } from "../src/components/Screen";
 import { client } from "../src/lib/backend";
-function Editor() {
+export function AccountEditor() {
   const profile = useQuery(api.profiles.me);
   const save = useMutation(api.profiles.save);
   return profile === undefined ? (
@@ -91,35 +92,24 @@ function Fields({
 }
 function Account() {
   const { isAuthenticated, isLoading } = useConvexAuth();
-  const { signOut } = useAuthActions();
-  const [error, setError] = useState("");
-  return (
-    <Screen title={isAuthenticated ? "Your profile" : "Your creative home."}>
-      {isLoading ? (
-        <Text style={styles.text}>Checking session…</Text>
-      ) : isAuthenticated ? (
-        <>
-          <Editor />
-          <PublishedVideos />
-          <Button
-            title="Sign out"
-            onPress={() =>
-              void signOut().catch(() =>
-                setError("Unable to sign out. Try again."),
-              )
-            }
-          />
-        </>
-      ) : (
-        <EmailSignIn />
-      )}
-      <Text accessibilityLiveRegion="polite" style={styles.text}>
-        {error}
-      </Text>
+  const profile = useQuery(api.profiles.me, isAuthenticated ? {} : "skip");
+  if (isLoading || (isAuthenticated && profile === undefined))
+    return (
+      <Screen title="Your profile">
+        <Text style={styles.text}>Loading profile…</Text>
+      </Screen>
+    );
+  return isAuthenticated && profile ? (
+    <NativePublicProfile username={profile.username} />
+  ) : (
+    <Screen
+      title={isAuthenticated ? "Create your profile" : "Your creative home"}
+    >
+      {isAuthenticated ? <AccountEditor /> : <EmailSignIn />}
     </Screen>
   );
 }
-function EmailSignIn() {
+export function EmailSignIn() {
   const login = useEmailSignIn();
   return (
     <>

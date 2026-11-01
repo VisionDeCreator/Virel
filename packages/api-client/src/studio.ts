@@ -1,5 +1,5 @@
 import { useApiAction } from "./http";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api, type Id } from "@virel/backend";
 import {
@@ -10,6 +10,9 @@ import {
   validateStudioInput,
   validateUpload,
   type StudioInput,
+  type PlatformBase,
+  scriptReferences,
+  replaceMention,
 } from "@virel/shared";
 import { serverInput } from "./studioInput";
 import { useStudioScripts, type DraftStorage } from "./studioScripts";
@@ -19,6 +22,31 @@ export function useStudio(options: { draftStorage?: DraftStorage } = {}) {
     options.draftStorage ??
     (typeof localStorage !== "undefined" ? localStorage : undefined);
   const scripts = useStudioScripts(input, setInput, storage);
+  const [pendingBase, setPendingBase] = useState<StudioInput | null>(null);
+  useEffect(() => {
+    if (
+      !pendingBase ||
+      input.mode !== pendingBase.mode ||
+      !scripts.segmentId ||
+      input.segmentId !== scripts.segmentId
+    )
+      return;
+    const segment = scripts.segments?.find((s) => s._id === scripts.segmentId);
+    if (!segment || segment.mode !== pendingBase.mode) return;
+    setInput({
+      ...pendingBase,
+      segmentId: scripts.segmentId,
+      scriptVersion: undefined,
+    });
+    setPendingBase(null);
+  }, [
+    pendingBase,
+    input.mode,
+    input.segmentId,
+    scripts.segmentId,
+    scripts.segments,
+  ]);
+
   const [busy, setBusy] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<{
     name: string;
@@ -53,14 +81,23 @@ export function useStudio(options: { draftStorage?: DraftStorage } = {}) {
   } | null>(null);
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-  const key = JSON.stringify({
-    input,
-    title: scripts.title,
-    segmentId: scripts.segmentId,
-  });
+    if (!quoted) return;
+    setNow(Date.now());
+    const timer = setTimeout(
+      () => setNow(Date.now()),
+      Math.max(0, quoted.expiresAt - Date.now()) + 1,
+    );
+    return () => clearTimeout(timer);
+  }, [quoted]);
+  const key = useMemo(
+    () =>
+      JSON.stringify({
+        input,
+        title: scripts.title,
+        segmentId: scripts.segmentId,
+      }),
+    [input, scripts.title, scripts.segmentId],
+  );
   const quote = quoted?.key === key && quoted.expiresAt > now ? quoted : null;
   const request = useRef<{ quoteId: string; requestId: string } | null>(null);
   useEffect(() => {
@@ -165,6 +202,53 @@ export function useStudio(options: { draftStorage?: DraftStorage } = {}) {
   ) {
     return (await uploadFiles([file], transfer))?.[0];
   }
+  async function selectBase(base: PlatformBase | null) {
+    return run(async () => {
+      if (base && input.referenceAssetIds.length > 8)
+        throw new Error(
+          "Remove extra image references before remixing. Remixes support up to 8 images.",
+        );
+      const oldVideo = scriptReferences(input).find(
+        (ref) => ref.type === "video",
+      );
+      let next: StudioInput = {
+        ...input,
+        mode: base ? "remix" : "create",
+        sourceAssetId: undefined,
+        sourceVideoId: undefined,
+        referenceVideoAssetId: undefined,
+        referenceVideoId: undefined,
+        referenceBindings: input.referenceBindings?.filter((ref) =>
+          input.referenceAssetIds.includes(ref.assetId),
+        ),
+      };
+      if (base) {
+        next = {
+          ...next,
+          ...bindReference(next, base.assetId, "video"),
+          sourceVideoId: base.videoId,
+          duration: Math.ceil(base.duration),
+          aspectRatio: base.aspectRatio,
+        };
+        if (oldVideo)
+          next.prompt = replaceMention(next.prompt, oldVideo.alias, "video_1");
+      } else if (oldVideo)
+        next.prompt = next.prompt.replace(
+          /(^|[^\w@])@([a-zA-Z][\w]*)\b/g,
+          (match, prefix: string, alias: string) =>
+            alias === oldVideo.alias ? `${prefix}the video` : match,
+        );
+      await scripts.switchMode(base ? "remix" : "create");
+      setPendingBase(next);
+      setQuoted(null);
+      setMessage(
+        base
+          ? `Remixing “${base.title}”. Review the changes and credit cost before generating.`
+          : "Base removed. Review your description before creating a new video.",
+      );
+      return true;
+    });
+  }
   async function reviewCost() {
     return await run(async () => {
       validateStudioInput(input);
@@ -231,7 +315,8 @@ export function useStudio(options: { draftStorage?: DraftStorage } = {}) {
     scripts,
     change,
     setInput,
-    busy,
+    busy: busy || Boolean(pendingBase),
+    selectBase,
     uploadStatus,
     error,
     setError,

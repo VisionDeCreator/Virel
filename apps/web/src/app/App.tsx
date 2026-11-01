@@ -1,11 +1,20 @@
 import { NavLink, Route, Routes, useLocation } from "react-router-dom";
-import { Home, Compass, Plus, Bell, User, ArrowUpRight } from "lucide-react";
+import {
+  Home,
+  Compass,
+  Plus,
+  Bell,
+  User,
+  ArrowUpRight,
+  Settings as SettingsIcon,
+} from "lucide-react";
 import { EmptyState } from "@virel/ui";
-import { api, useQuery, useConvexAuth } from "@virel/api-client";
+import { api, useQuery, useConvexAuth, useApiUrl } from "@virel/api-client";
 import { navigation } from "@virel/shared";
 import { Feed, FeedPreview } from "../features/feed/Feed";
 import { Profile, ProfilePreview } from "../features/profile/Profile";
 import { Studio } from "../features/studio/Studio";
+import { Settings } from "../features/settings/Settings";
 const icons = [Home, Compass, Plus, Bell, User];
 export function App({ connected }: { connected: boolean }) {
   const path = useLocation().pathname;
@@ -13,10 +22,12 @@ export function App({ connected }: { connected: boolean }) {
     path === "/"
       ? "Discover"
       : path === "/create"
-        ? "Studio"
+        ? "Your creations"
         : path === "/profile"
           ? "Your profile"
-          : path.slice(1);
+          : path.startsWith("/u/")
+            ? "Creator profile"
+            : path.slice(1);
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -38,23 +49,26 @@ export function App({ connected }: { connected: boolean }) {
             );
           })}
         </nav>
-        <div className="sidebar-note">
-          <span className="eyebrow">A LITTLE IMAGINATION.</span>
-          <p>
-            A whole new
-            <br />
-            point of view.
-          </p>
-          <NavLink to="/create">
-            Make something <ArrowUpRight size={15} />
-          </NavLink>
-        </div>
+        {connected ? (
+          <AccountSidebar />
+        ) : (
+          <div className="sidebar-account">
+            <NavLink to="/profile">
+              <User size={20} /> Your profile
+            </NavLink>
+            <NavLink to="/settings">
+              <SettingsIcon size={20} /> Settings
+            </NavLink>
+          </div>
+        )}
       </aside>
       <main>
         <header>
           <span className="page-label">{title}</span>
           <div className="header-end">
-            {connected && <CreditBalance />}
+            {connected && (path === "/create" || path === "/settings") && (
+              <CreditBalance />
+            )}
             {!connected && <span className="status">Design preview</span>}
             <NavLink
               to="/profile"
@@ -66,6 +80,14 @@ export function App({ connected }: { connected: boolean }) {
           </div>
         </header>
         <Routes>
+          <Route
+            path="/u/:username"
+            element={connected ? <Profile /> : <ProfilePreview />}
+          />
+          <Route
+            path="/settings"
+            element={<Settings connected={connected} />}
+          />
           <Route path="/" element={connected ? <Feed /> : <FeedPreview />} />
           <Route
             path="/profile"
@@ -112,4 +134,41 @@ function CreditBalance() {
       {balance?.available ?? 0} credits
     </NavLink>
   ) : null;
+}
+
+function AccountSidebar() {
+  const apiUrl = useApiUrl();
+  const { isAuthenticated } = useConvexAuth();
+  const profile = useQuery(api.profiles.me, isAuthenticated ? {} : "skip");
+  return (
+    <div className="sidebar-account">
+      <NavLink to="/profile">
+        {profile?.avatarAssetId && apiUrl ? (
+          <img
+            src={`${apiUrl}/avatars/${profile.username}?v=${profile.avatarVersion ?? 0}`}
+            alt="Your profile picture"
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: "50%",
+              objectFit: "cover",
+            }}
+          />
+        ) : (
+          <User size={20} />
+        )}
+        <span>
+          {profile?.displayName ?? "Your profile"}
+          {profile && (
+            <small style={{ display: "block", color: "var(--muted)" }}>
+              @{profile.username}
+            </small>
+          )}
+        </span>
+      </NavLink>
+      <NavLink to="/settings?tab=account">
+        <SettingsIcon size={20} /> Settings
+      </NavLink>
+    </div>
+  );
 }

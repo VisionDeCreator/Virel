@@ -6,6 +6,7 @@ import {
 } from "@virel/shared";
 import { assertCreditWrites, assertCurrentAccount } from "./creditPricing";
 import { v } from "convex/values";
+import { paginationOptsValidator } from "convex/server";
 import {
   query,
   mutation,
@@ -201,6 +202,63 @@ export const list = query({
         video: job.videoId ? await ctx.db.get(job.videoId) : null,
       })),
     );
+  },
+});
+// The creation library spans every mode and script, with no history cutoff.
+export const library = query({
+  args: {
+    paginationOpts: paginationOptsValidator,
+    filter: v.union(
+      v.literal("all"),
+      v.literal("progress"),
+      v.literal("ready"),
+      v.literal("failed"),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireUser(ctx);
+    let jobs = ctx.db
+      .query("generationJobs")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .order("desc");
+    if (args.filter === "all")
+      jobs = jobs.filter((q) => q.neq(q.field("status"), "failed"));
+    if (args.filter === "ready")
+      jobs = jobs.filter((q) => q.eq(q.field("status"), "succeeded"));
+    if (args.filter === "failed")
+      jobs = jobs.filter((q) => q.eq(q.field("status"), "failed"));
+    if (args.filter === "progress")
+      jobs = jobs.filter((q) =>
+        q.and(
+          q.neq(q.field("status"), "succeeded"),
+          q.neq(q.field("status"), "failed"),
+        ),
+      );
+    const page = await jobs.paginate(args.paginationOpts);
+    return {
+      ...page,
+      page: await Promise.all(
+        page.page.map(async (job) => ({
+          ...job,
+          credits: currentCredits(job.credits, job.creditsPerUsd),
+          video: job.videoId ? await ctx.db.get(job.videoId) : null,
+        })),
+      ),
+    };
+  },
+});
+export const detail = query({
+  args: { jobId: v.string() },
+  handler: async (ctx, { jobId }) => {
+    const userId = await requireUser(ctx);
+    const id = ctx.db.normalizeId("generationJobs", jobId);
+    const job = id ? await ctx.db.get(id) : null;
+    if (!job || job.userId !== userId) return null;
+    return {
+      ...job,
+      credits: currentCredits(job.credits, job.creditsPerUsd),
+      video: job.videoId ? await ctx.db.get(job.videoId) : null,
+    };
   },
 });
 export const jobContext = internalQuery({

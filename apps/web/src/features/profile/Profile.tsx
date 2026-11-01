@@ -1,7 +1,11 @@
+import { ProfileView } from "./ProfileView";
+import { NavLink, useParams } from "react-router-dom";
 import { useState, type FormEvent } from "react";
 import {
   api,
   useQuery,
+  usePaginatedQuery,
+  useApiUrl,
   useMutation,
   useAuthActions,
   useEmailSignIn,
@@ -9,28 +13,123 @@ import {
 } from "@virel/api-client";
 import { Button, Panel, Avatar, Field, TextArea, Notice } from "@virel/ui";
 export function Profile() {
+  const { username } = useParams();
+  return username ? <PublicProfile username={username} /> : <OwnProfile />;
+}
+function OwnProfile() {
   const { isAuthenticated, isLoading } = useConvexAuth();
-  const { signOut } = useAuthActions();
-  const [error, setError] = useState("");
-  if (isLoading) return <Notice>Checking your session…</Notice>;
+  const profile = useQuery(api.profiles.me, isAuthenticated ? {} : "skip");
+  if (isLoading || (isAuthenticated && profile === undefined))
+    return <Notice>Loading your profile…</Notice>;
   if (!isAuthenticated) return <EmailSignIn />;
-  return (
+  return profile ? (
+    <PublicProfile username={profile.username} />
+  ) : (
     <section className="profile">
+      <h1>Create your profile</h1>
       <ProfileForm />
-      <PublishedVideos />
-      <Button
-        variant="ghost"
-        onClick={() =>
-          void signOut().catch(() => setError("Unable to sign out. Try again."))
-        }
-      >
-        Sign out
-      </Button>
-      {error && <Notice error>{error}</Notice>}
     </section>
   );
 }
-function EmailSignIn() {
+export function PublicProfile({ username }: { username: string }) {
+  const profile = useQuery(api.profiles.publicProfile, { username });
+  const { isAuthenticated } = useConvexAuth();
+  const follow = useMutation(api.profiles.setFollowing);
+  const apiUrl = useApiUrl();
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  if (profile === undefined) return <Notice>Loading profile…</Notice>;
+  if (!profile)
+    return (
+      <section className="profile">
+        <h1>Profile not found</h1>
+        <NavLink to="/">Back to Home</NavLink>
+      </section>
+    );
+  return (
+    <ProfileView
+      profile={profile}
+      avatarUrl={
+        apiUrl
+          ? `${apiUrl}/avatars/${encodeURIComponent(profile.username)}?v=${profile.avatarVersion}`
+          : undefined
+      }
+      isAuthenticated={isAuthenticated}
+      busy={busy}
+      message={message}
+      onFollow={() => {
+        setBusy(true);
+        void follow({ username, following: !profile.isFollowing })
+          .catch((error) =>
+            setMessage(
+              error instanceof Error
+                ? error.message
+                : "Unable to update follow.",
+            ),
+          )
+          .finally(() => setBusy(false));
+      }}
+      onShare={() =>
+        void navigator.clipboard
+          .writeText(
+            `${window.location.origin}/u/${encodeURIComponent(profile.username)}`,
+          )
+          .then(() => setMessage("Profile link copied."))
+          .catch(() =>
+            setMessage("Copy the profile URL from your browser to share it."),
+          )
+      }
+    >
+      <PublicVideos username={username} />
+    </ProfileView>
+  );
+}
+
+function PublicVideos({ username }: { username: string }) {
+  const { results, status, loadMore } = usePaginatedQuery(
+    api.profiles.videos,
+    { username },
+    { initialNumItems: 12 },
+  );
+  return (
+    <>
+      {status === "LoadingFirstPage" ? (
+        <Notice>Loading videos…</Notice>
+      ) : !results.length ? (
+        <div className="creation-empty">
+          <h3>No published videos yet.</h3>
+          <p>Published originals and remixes will appear here.</p>
+        </div>
+      ) : (
+        <div className="public-video-grid">
+          {results.map((video) => (
+            <article className="public-video-card" key={video._id}>
+              <video
+                src={`${video.playbackUrl}#t=0.001`}
+                controls
+                playsInline
+                preload="metadata"
+              />
+              <h3>{video.title}</h3>
+              {video.remixEnabled && (
+                <NavLink
+                  className="text-link"
+                  to={`/create?source=${video._id}`}
+                >
+                  Remix this video →
+                </NavLink>
+              )}
+            </article>
+          ))}
+        </div>
+      )}
+      {status === "CanLoadMore" && (
+        <Button onClick={() => loadMore(12)}>Load more videos</Button>
+      )}
+    </>
+  );
+}
+export function EmailSignIn() {
   const login = useEmailSignIn();
   return (
     <section className="profile">
@@ -118,7 +217,7 @@ function EmailSignIn() {
     </section>
   );
 }
-function ProfileForm() {
+export function ProfileForm() {
   const profile = useQuery(api.profiles.me);
   const save = useMutation(api.profiles.save);
   const [message, setMessage] = useState("");
@@ -149,18 +248,8 @@ function ProfileForm() {
   }
   return (
     <>
-      <div className="profile-identity">
-        <Avatar name={profile?.displayName ?? "You"} size="large" />
-        <div>
-          <span className="eyebrow">YOUR CREATIVE IDENTITY</span>
-          <h1>{profile?.displayName ?? "Make your mark."}</h1>
-          <p>
-            {profile ? `@${profile.username}` : "Your profile starts with you."}
-          </p>
-        </div>
-      </div>
       <Panel>
-        <h2>Your point of view.</h2>
+        <h2>Public profile details</h2>
         <form key={profile?._id ?? "new"} onSubmit={submit}>
           <Field
             label="Username"

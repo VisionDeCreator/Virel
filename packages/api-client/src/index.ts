@@ -11,3 +11,8 @@ export { useAuthActions, useAuthToken } from "@convex-dev/auth/react";
 export type { Id, Doc } from "@virel/backend";
 export { useStudio } from "./studio";
 export { useEmailSignIn } from "./email-otp";
+
+export { useApiUrl, useApiAction } from "./http";
+export { usePostReaction } from "./post-reaction";
+
+export type { FunctionReturnType } from "convex/server";

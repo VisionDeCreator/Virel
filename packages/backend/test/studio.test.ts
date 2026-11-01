@@ -38,7 +38,7 @@ async function setup() {
       bytes: 100,
       duration: 5.1,
       status: "ready",
-      generated: false,
+      generated: true,
     });
     const image = await ctx.db.insert("mediaAssets", {
       userId: aliceId,
@@ -144,7 +144,7 @@ test("settlement creates one private output and charges once, separate from publ
   ).toHaveLength(0);
 });
 test("quotes and assets belong to their owner; removed permissions block new remixes", async () => {
-  const { t, alice, bob, quote, input, aliceId } = await setup();
+  const { t, alice, bob, quote, input, aliceId, bobId } = await setup();
   await expect(
     bob.mutation(api.generation.start, {
       quoteId: quote.quoteId,
@@ -168,15 +168,20 @@ test("quotes and assets belong to their owner; removed permissions block new rem
       royaltyEligible: true,
     }),
   );
-  const remixQuote = await alice.mutation(internal.generation.saveQuote, {
-    input: { ...input, sourceVideoId: videoId },
+  const bobImage = await t.run(async (ctx) => {
+    const image = (await ctx.db.get(input.referenceAssetIds[0]))!;
+    const { _id, _creationTime, ...copy } = image;
+    return ctx.db.insert("mediaAssets", { ...copy, userId: bobId });
+  });
+  const remixQuote = await bob.mutation(internal.generation.saveQuote, {
+    input: { ...input, sourceVideoId: videoId, referenceAssetIds: [bobImage] },
     supplierMaximumUsdMicros: 100000,
     creditsPerUsd: 1000,
     markupBps: 3000,
   });
   await t.run((ctx) => ctx.db.patch(videoId, { remixEnabled: false }));
   await expect(
-    alice.mutation(api.generation.start, {
+    bob.mutation(api.generation.start, {
       quoteId: remixQuote.quoteId,
       requestId: "request-permission-race",
     }),
@@ -545,4 +550,132 @@ test("upload completion claims protect ownership and keep uncertain copies recov
   expect(
     (await alice.mutation(internal.media.claimCompletion, { assetId })).token,
   ).toBeNull();
+});
+
+test("creation library paginates past 30 jobs and protects video details", async () => {
+  const { t, alice, bob, quote } = await setup();
+  const firstId = await alice.mutation(api.generation.start, {
+    quoteId: quote.quoteId,
+    requestId: "library-pagination-0001",
+  });
+  await t.run(async (ctx) => {
+    const first = (await ctx.db.get(firstId))!;
+    const { _id, _creationTime, ...copy } = first;
+    await ctx.db.insert("generationJobs", {
+      ...copy,
+      requestId: "library-failed",
+      status: "failed",
+    });
+    for (let index = 0; index < 34; index++)
+      await ctx.db.insert("generationJobs", {
+        ...copy,
+        requestId: `library-copy-${index}`,
+        status: "queued",
+      });
+  });
+  const page1 = await alice.query(api.generation.library, {
+    filter: "all",
+    paginationOpts: { numItems: 30, cursor: null },
+  });
+  expect(page1.page).toHaveLength(30);
+  expect(page1.page.every((job) => job.status !== "failed")).toBe(true);
+  expect(page1.isDone).toBe(false);
+  const page2 = await alice.query(api.generation.library, {
+    filter: "all",
+    paginationOpts: { numItems: 30, cursor: page1.continueCursor },
+  });
+  expect(page2.page).toHaveLength(5);
+  expect(page2.isDone).toBe(true);
+  expect(
+    new Set([...page1.page, ...page2.page].map((job) => job._id)).size,
+  ).toBe(35);
+  expect(await bob.query(api.generation.detail, { jobId: firstId })).toBeNull();
+  expect(
+    await alice.query(api.generation.detail, { jobId: "invalid-id" }),
+  ).toBeNull();
+  expect(
+    (await alice.query(api.generation.detail, { jobId: firstId }))?._id,
+  ).toBe(firstId);
+  const failures = await alice.query(api.generation.library, {
+    filter: "failed",
+    paginationOpts: { numItems: 30, cursor: null },
+  });
+  expect(failures.page.length).toBeGreaterThan(0);
+  expect(failures.page.every((job) => job.status === "failed")).toBe(true);
+  expect(
+    (
+      await bob.query(api.generation.library, {
+        filter: "all",
+        paginationOpts: { numItems: 30, cursor: null },
+      })
+    ).page,
+  ).toEqual([]);
+});
+
+test("remix bases are platform videos and private bases never leak to other users", async () => {
+  const { t, alice, bob, quote, input, assetIds } = await setup();
+  const jobId = await alice.mutation(api.generation.start, {
+    quoteId: quote.quoteId,
+    requestId: "platform-base-test-001",
+  });
+  await t.mutation(internal.generation.complete, {
+    jobId,
+    key: "private/platform-base",
+    bytes: 100,
+    duration: 6,
+    width: 720,
+    height: 1280,
+  });
+  const job = (await alice.query(api.generation.list))[0];
+  const own = await alice.query(api.media.bases, {
+    scope: "mine",
+    paginationOpts: { numItems: 12, cursor: null },
+  });
+  expect(own.page.map((base) => base.assetId)).toContain(job.outputAssetId);
+  expect(
+    (await alice.query(api.media.base, { assetId: job.outputAssetId! }))
+      ?.assetId,
+  ).toBe(job.outputAssetId);
+  expect(
+    await bob.query(api.media.base, {
+      assetId: job.outputAssetId!,
+      videoId: job.videoId!,
+    }),
+  ).toBeNull();
+  expect(
+    (
+      await bob.query(api.media.bases, {
+        scope: "community",
+        paginationOpts: { numItems: 12, cursor: null },
+      })
+    ).page,
+  ).toEqual([]);
+  await t.run((ctx) =>
+    ctx.db.patch(job.videoId!, {
+      visibility: "public",
+      status: "published",
+      remixEnabled: true,
+      playbackUrl: "https://example.com/base.mp4",
+    }),
+  );
+  expect(
+    (await bob.query(api.media.base, { videoId: job.videoId! }))?.assetId,
+  ).toBe(job.outputAssetId);
+  expect(
+    (
+      await bob.query(api.media.bases, {
+        scope: "community",
+        paginationOpts: { numItems: 12, cursor: null },
+      })
+    ).page.map((base) => base.assetId),
+  ).toContain(job.outputAssetId);
+  await t.run((ctx) => ctx.db.patch(job.videoId!, { remixEnabled: false }));
+  expect(await bob.query(api.media.base, { videoId: job.videoId! })).toBeNull();
+  await t.run((ctx) => ctx.db.patch(assetIds.source, { generated: false }));
+  expect(
+    await alice.query(api.media.base, { assetId: assetIds.source }),
+  ).toBeNull();
+  await expect(
+    alice.query(internal.generation.context, { input }),
+  ).rejects.toThrow("Uploaded files cannot be remix bases");
 });

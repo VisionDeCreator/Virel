@@ -1,4 +1,5 @@
 import { enqueue } from "./tasks";
+import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { internalMutation, internalQuery, query } from "./_generated/server";
 import { requireUser } from "./studioAccess";
@@ -215,5 +216,130 @@ export const removeGarbage = internalMutation({
   args: { id: v.id("mediaGarbage") },
   handler: async (ctx, { id }) => {
     await ctx.db.delete(id);
+  },
+});
+
+export const base = query({
+  args: { assetId: v.optional(v.string()), videoId: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const userId = await requireUser(ctx);
+    const videoId = args.videoId
+      ? ctx.db.normalizeId("videos", args.videoId)
+      : null;
+    let video = videoId ? await ctx.db.get(videoId) : null;
+    const assetId =
+      video?.assetId ??
+      (args.assetId ? ctx.db.normalizeId("mediaAssets", args.assetId) : null);
+    const asset = assetId ? await ctx.db.get(assetId) : null;
+    if (
+      !asset ||
+      asset.status !== "ready" ||
+      asset.type !== "video" ||
+      !asset.duration ||
+      asset.duration < 4 ||
+      asset.duration > 15
+    )
+      return null;
+    const owns = asset.userId === userId && asset.generated;
+    if (owns && !video) {
+      const job = await ctx.db
+        .query("generationJobs")
+        .withIndex("by_outputAssetId", (q) => q.eq("outputAssetId", asset._id))
+        .unique();
+      if (job?.videoId) video = await ctx.db.get(job.videoId);
+    }
+
+    const published =
+      video &&
+      video.visibility === "public" &&
+      video.status === "published" &&
+      video.remixEnabled &&
+      video.assetId === asset._id;
+    if (!owns && !published) return null;
+    const creator = await ctx.db
+      .query("profiles")
+      .withIndex("by_user", (q) => q.eq("userId", asset.userId))
+      .unique();
+    const ratio = (asset.width ?? 9) / (asset.height ?? 16);
+    return {
+      assetId: asset._id,
+      ...(video ? { videoId: video._id } : {}),
+      title: video?.title ?? asset.name,
+      creator: creator?.username ?? "you",
+      duration: asset.duration,
+      aspectRatio:
+        ratio > 1.2
+          ? ("16:9" as const)
+          : ratio < 0.8
+            ? ("9:16" as const)
+            : ("1:1" as const),
+      ...(published && video ? { playbackUrl: video.playbackUrl } : {}),
+    };
+  },
+});
+export const bases = query({
+  args: {
+    scope: v.union(v.literal("mine"), v.literal("community")),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireUser(ctx);
+    const page =
+      args.scope === "mine"
+        ? await ctx.db
+            .query("videos")
+            .withIndex("by_creator", (q) => q.eq("creatorId", userId))
+            .order("desc")
+            .filter((q) => q.neq(q.field("assetId"), undefined))
+            .paginate(args.paginationOpts)
+        : await ctx.db
+            .query("videos")
+            .withIndex("by_feed", (q) =>
+              q.eq("visibility", "public").eq("status", "published"),
+            )
+            .order("desc")
+            .filter((q) =>
+              q.and(
+                q.eq(q.field("remixEnabled"), true),
+                q.neq(q.field("assetId"), undefined),
+              ),
+            )
+            .paginate(args.paginationOpts);
+    const bases = await Promise.all(
+      page.page.map(async (video) => {
+        const asset = video.assetId ? await ctx.db.get(video.assetId) : null;
+        if (
+          !asset ||
+          asset.status !== "ready" ||
+          !asset.duration ||
+          asset.duration < 4 ||
+          asset.duration > 15 ||
+          (args.scope === "mine" && !asset.generated)
+        )
+          return null;
+        const creator = await ctx.db
+          .query("profiles")
+          .withIndex("by_user", (q) => q.eq("userId", video.creatorId))
+          .unique();
+        const ratio = (asset.width ?? 9) / (asset.height ?? 16);
+        return {
+          assetId: asset._id,
+          videoId: video._id,
+          title: video.title,
+          creator: creator?.username ?? "you",
+          duration: asset.duration,
+          aspectRatio:
+            ratio > 1.2
+              ? ("16:9" as const)
+              : ratio < 0.8
+                ? ("9:16" as const)
+                : ("1:1" as const),
+          ...(args.scope === "community"
+            ? { playbackUrl: video.playbackUrl }
+            : {}),
+        };
+      }),
+    );
+    return { ...page, page: bases.filter((base) => base !== null) };
   },
 });

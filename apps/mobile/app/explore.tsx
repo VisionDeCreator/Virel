@@ -4,8 +4,8 @@ export default function Page() {
   return (
     <Screen title="Discover your next idea.">
       <Text style={styles.text}>
-        This destination is reserved for a later milestone. Generation and
-        payments are not enabled.
+        This space is coming soon. Visit Home for inspiration or Create to find
+        your videos and start a new idea.
       </Text>
     </Screen>
   );

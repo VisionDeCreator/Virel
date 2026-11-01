@@ -10,7 +10,7 @@ import { api } from "@virel/backend";
 import { services } from "./registry";
 import { createContext } from "./runtime/context";
 import { validateArgs } from "./runtime/validation";
-import { publishedUrl } from "./services/mediaDelivery";
+import { publishedUrl, avatarUrl } from "./services/mediaDelivery";
 export function createApp(
   config: { convexUrl?: string; webOrigins?: string[] } = {},
 ) {
@@ -157,6 +157,21 @@ export function createApp(
             ? text
             : "Studio service is temporarily unavailable. Try again.",
         };
+      }
+    })
+    .get("/avatars/:username", async ({ params }) => {
+      try {
+        const url = await avatarUrl.handler(createContext(), {
+          username: params.username,
+        });
+        return url
+          ? new Response(null, {
+              status: 307,
+              headers: { Location: url, "Cache-Control": "no-store" },
+            })
+          : new Response(null, { status: 404 });
+      } catch {
+        return new Response(null, { status: 503 });
       }
     })
     .get("/media/:videoId", async ({ params, set }) => {

@@ -1,6 +1,8 @@
+import { useVideoPlayer, VideoView } from "expo-video";
+import { colors } from "@virel/design-tokens";
 import { useState, useEffect } from "react";
 import { Text, View, Image } from "react-native";
-import { type useStudio, type Id } from "@virel/api-client";
+import { type useStudio, type Id, useQuery, api } from "@virel/api-client";
 import { Button, Field } from "@virel/ui-native";
 import {
   scriptReferences,
@@ -9,13 +11,32 @@ import {
   replaceReference,
   removeReference,
   referenceLimit,
+  replaceMention,
 } from "@virel/shared";
 import { styles } from "../../components/Screen";
 type Studio = ReturnType<typeof useStudio>;
-function Thumbnail({ id, studio }: { id: string; studio: Studio }) {
+function Thumbnail({
+  id,
+  studio,
+  type = "image",
+}: {
+  id: string;
+  studio: Studio;
+  type?: "image" | "video";
+}) {
+  const base = useQuery(
+    api.media.base,
+    type === "video"
+      ? { assetId: id, videoId: studio.input.sourceVideoId }
+      : "skip",
+  );
   const [url, setUrl] = useState("");
   useEffect(() => {
     let live = true;
+    if (base?.playbackUrl) {
+      setUrl(base.playbackUrl);
+      return;
+    }
     void studio
       .preview({ assetId: id as Id<"mediaAssets"> })
       .then((url) => {
@@ -25,7 +46,8 @@ function Thumbnail({ id, studio }: { id: string; studio: Studio }) {
     return () => {
       live = false;
     };
-  }, [id, studio.preview]);
+  }, [id, studio.preview, base?.playbackUrl]);
+  if (url && type === "video") return <VideoThumbnail url={url} />;
   return url ? (
     <Image
       source={{ uri: url }}
@@ -33,6 +55,21 @@ function Thumbnail({ id, studio }: { id: string; studio: Studio }) {
       accessibilityLabel="Reference preview"
     />
   ) : null;
+}
+function VideoThumbnail({ url }: { url: string }) {
+  const player = useVideoPlayer(url, (player) => {
+    player.muted = true;
+  });
+  return (
+    <View pointerEvents="none">
+      <VideoView
+        player={player}
+        nativeControls={false}
+        contentFit="cover"
+        style={{ width: 80, height: 80, borderRadius: 10 }}
+      />
+    </View>
+  );
 }
 export function NativeScriptEditor({ studio }: { studio: Studio }) {
   const { input, scripts, busy } = studio;
@@ -42,6 +79,7 @@ export function NativeScriptEditor({ studio }: { studio: Studio }) {
     end: input.prompt.length,
   });
   const [history, setHistory] = useState("");
+  const [editingAlias, setEditingAlias] = useState<string | null>(null);
   const query = input.prompt
     .slice(0, selection.start)
     .match(/(?:^|\s)@([\w]*)$/);
@@ -54,8 +92,32 @@ export function NativeScriptEditor({ studio }: { studio: Studio }) {
       );
     }
   }
-  function insert(asset: NonNullable<Studio["assets"]>[number]) {
+  function insert(
+    asset: Pick<NonNullable<Studio["assets"]>[number], "_id" | "name" | "type">,
+  ) {
     attempt(() => {
+      if (editingAlias) {
+        const current = refs.find((ref) => ref.alias === editingAlias);
+        if (current && current.assetId !== asset._id) {
+          const linked = refs.find((ref) => ref.assetId === asset._id);
+          studio.change(
+            linked
+              ? {
+                  ...removeReference(input, current.assetId),
+                  prompt: replaceMention(
+                    input.prompt,
+                    current.alias,
+                    linked.alias,
+                  ),
+                }
+              : replaceReference(input, current.assetId, asset._id),
+          );
+        }
+        setEditingAlias(null);
+        return;
+      }
+      if (asset.type === "video" && asset._id !== input.sourceAssetId)
+        throw new Error("Choose a platform video using Starting point.");
       if (
         asset.type === "image" &&
         !input.referenceAssetIds.includes(asset._id) &&
@@ -115,95 +177,160 @@ export function NativeScriptEditor({ studio }: { studio: Studio }) {
       <Field
         label={input.mode === "remix" ? "What would you change?" : "Script"}
         value={input.prompt}
-        onChangeText={(prompt) => studio.change({ prompt })}
-        onSelectionChange={(event) => setSelection(event.nativeEvent.selection)}
+        onChangeText={(prompt) => {
+          setEditingAlias(null);
+          studio.change({ prompt });
+        }}
+        onSelectionChange={(event) => {
+          const selection = event.nativeEvent.selection;
+          setSelection(selection);
+          const token = [
+            ...input.prompt.matchAll(/(^|[^\w@])@([a-zA-Z][\w]*)\b/g),
+          ].find(
+            (match) =>
+              selection.start > match.index! + match[1].length &&
+              selection.start <= match.index! + match[0].length,
+          );
+          setEditingAlias(
+            token && refs.some((ref) => ref.alias === token[2])
+              ? token[2]
+              : null,
+          );
+        }}
         editable={!busy}
         multiline
         maxLength={4000}
         style={{ minHeight: 160, textAlignVertical: "top" }}
         placeholder="Describe the action, camera, and sound. Type @ to link an image or video."
       />
-      {query &&
+      {refs.length > 0 && (
+        <Text
+          style={styles.text}
+          accessibilityLabel="Script with linked references"
+        >
+          {input.prompt.split(/(@[a-zA-Z][\w]*)/g).map((part, index) => (
+            <Text
+              key={index}
+              style={
+                refs.some((ref) => `@${ref.alias}` === part)
+                  ? { color: colors.primary, fontWeight: "700" }
+                  : undefined
+              }
+            >
+              {part}
+            </Text>
+          ))}
+        </Text>
+      )}
+      {editingAlias && (
+        <Text style={styles.text}>Update all @{editingAlias} references</Text>
+      )}
+      {(query || editingAlias) &&
         studio.assets
-          ?.filter((asset) =>
-            asset.name.toLowerCase().includes(query[1].toLowerCase()),
+          ?.filter(
+            (asset) =>
+              asset.type === "image" || asset._id === input.sourceAssetId,
+          )
+          .filter((asset) =>
+            editingAlias
+              ? asset.type ===
+                refs.find((ref) => ref.alias === editingAlias)?.type
+              : asset.name
+                  .toLowerCase()
+                  .includes((query?.[1] ?? "").toLowerCase()),
           )
           .slice(0, 6)
           .map((asset) => (
-            <Button
+            <View
               key={asset._id}
-              title={`Link ${asset.name}`}
-              disabled={busy}
-              variant="secondary"
-              onPress={() => insert(asset)}
-            />
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 12,
+                backgroundColor: colors.surface,
+                padding: 12,
+                borderRadius: 12,
+              }}
+            >
+              <Thumbnail id={asset._id} type={asset.type} studio={studio} />
+              <View style={{ flex: 1 }}>
+                <Button
+                  title={`Link ${asset.name}`}
+                  disabled={busy}
+                  variant="secondary"
+                  onPress={() => insert(asset)}
+                />
+              </View>
+            </View>
           ))}
       <Text style={styles.text}>
         {input.prompt.length}/4,000 · Insert references below or type @.
       </Text>
-      {refs.map((ref) => (
-        <View key={ref.assetId} style={{ gap: 10, paddingVertical: 10 }}>
-          {ref.type === "image" && (
-            <Thumbnail id={ref.assetId} studio={studio} />
-          )}
-          <Text style={styles.label}>
-            {studio.assets?.find((asset) => asset._id === ref.assetId)?.name ??
-              "Selected video"}
-          </Text>
-          <Button
-            title={`Insert @${ref.alias}`}
-            disabled={busy}
-            variant="secondary"
-            onPress={() => {
-              const asset = studio.assets?.find(
-                (asset) => asset._id === ref.assetId,
-              );
-              if (asset) insert(asset);
-            }}
-          />
-          <Field
-            key={ref.alias}
-            label={`Reference name ${ref.alias}`}
-            defaultValue={ref.alias}
-            editable={!busy}
-            onEndEditing={(event) => {
-              const alias = event.nativeEvent.text.trim();
-              if (alias !== ref.alias)
-                attempt(() =>
-                  studio.change(renameReference(input, ref.assetId, alias)),
+      {refs
+        .filter((ref) => ref.type === "image")
+        .map((ref) => (
+          <View key={ref.assetId} style={{ gap: 10, paddingVertical: 10 }}>
+            {ref.type === "image" && (
+              <Thumbnail id={ref.assetId} studio={studio} />
+            )}
+            <Text style={styles.label}>
+              {studio.assets?.find((asset) => asset._id === ref.assetId)
+                ?.name ?? "Selected video"}
+            </Text>
+            <Button
+              title={`Insert @${ref.alias}`}
+              disabled={busy}
+              variant="secondary"
+              onPress={() => {
+                const asset = studio.assets?.find(
+                  (asset) => asset._id === ref.assetId,
                 );
-            }}
-          />
-          <Button
-            title={`Remove @${ref.alias}`}
-            disabled={busy}
-            variant="secondary"
-            onPress={() => studio.change(removeReference(input, ref.assetId))}
-          />
-          {studio.assets
-            ?.filter(
-              (asset) =>
-                asset.type === ref.type &&
-                !refs.some((ref) => ref.assetId === asset._id),
-            )
-            .slice(0, 3)
-            .map((asset) => (
-              <Button
-                key={asset._id}
-                title={`Replace @${ref.alias} with ${asset.name}`}
-                disabled={busy}
-                variant="secondary"
-                onPress={() =>
+                if (asset) insert(asset);
+              }}
+            />
+            <Field
+              key={ref.alias}
+              label={`Reference name ${ref.alias}`}
+              defaultValue={ref.alias}
+              editable={!busy}
+              onEndEditing={(event) => {
+                const alias = event.nativeEvent.text.trim();
+                if (alias !== ref.alias)
                   attempt(() =>
-                    studio.change(
-                      replaceReference(input, ref.assetId, asset._id),
-                    ),
-                  )
-                }
-              />
-            ))}
-        </View>
-      ))}
+                    studio.change(renameReference(input, ref.assetId, alias)),
+                  );
+              }}
+            />
+            <Button
+              title={`Remove @${ref.alias}`}
+              disabled={busy}
+              variant="secondary"
+              onPress={() => studio.change(removeReference(input, ref.assetId))}
+            />
+            {studio.assets
+              ?.filter(
+                (asset) =>
+                  asset.type === ref.type &&
+                  !refs.some((ref) => ref.assetId === asset._id),
+              )
+              .slice(0, 3)
+              .map((asset) => (
+                <Button
+                  key={asset._id}
+                  title={`Replace @${ref.alias} with ${asset.name}`}
+                  disabled={busy}
+                  variant="secondary"
+                  onPress={() =>
+                    attempt(() =>
+                      studio.change(
+                        replaceReference(input, ref.assetId, asset._id),
+                      ),
+                    )
+                  }
+                />
+              ))}
+          </View>
+        ))}
       <Text style={styles.label}>Script history</Text>
       {scripts.versions?.slice(0, 10).map((version) => (
         <Button

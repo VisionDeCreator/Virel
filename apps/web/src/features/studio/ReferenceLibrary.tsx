@@ -10,18 +10,25 @@ import {
 } from "@virel/shared";
 import { Button } from "@virel/ui";
 type Studio = ReturnType<typeof useStudio>;
-function Thumbnail({
+export function ReferenceThumbnail({
   assetId,
   type,
   studio,
+  playbackUrl,
 }: {
   assetId: string;
   type: "image" | "video";
   studio: Studio;
+  playbackUrl?: string;
 }) {
   const [url, setUrl] = useState("");
   useEffect(() => {
     let live = true;
+    setUrl("");
+    if (playbackUrl) {
+      setUrl(playbackUrl);
+      return;
+    }
     void studio
       .preview({ assetId: assetId as Id<"mediaAssets"> })
       .then((url) => {
@@ -31,14 +38,14 @@ function Thumbnail({
     return () => {
       live = false;
     };
-  }, [assetId, studio.preview]);
+  }, [assetId, studio.preview, playbackUrl]);
   return url ? (
     type === "image" ? (
       <img className="reference-thumbnail" src={url} alt="Reference preview" />
     ) : (
       <video
         className="reference-thumbnail"
-        src={url}
+        src={`${url}#t=0.001`}
         muted
         playsInline
         preload="metadata"
@@ -49,7 +56,9 @@ function Thumbnail({
   );
 }
 export function ReferenceLibrary({ studio }: { studio: Studio }) {
-  const refs = scriptReferences(studio.input);
+  const refs = scriptReferences(studio.input).filter(
+    (ref) => ref.type === "image",
+  );
   function attempt(operation: () => void) {
     try {
       operation();
@@ -64,8 +73,8 @@ export function ReferenceLibrary({ studio }: { studio: Studio }) {
       <h3>Media & references</h3>
       <small>
         {studio.input.mode === "remix"
-          ? "One required source video and up to 8 reference images."
-          : "Optional: one reference video and up to 30 reference images. Images guide appearance; they are not automatically a starting frame."}
+          ? "1–8 image references required for this remix model."
+          : "Optional: up to 30 image references. Images guide appearance; they are not automatically a starting frame."}
       </small>
       {refs.map((ref) => (
         <div
@@ -76,7 +85,11 @@ export function ReferenceLibrary({ studio }: { studio: Studio }) {
             event.dataTransfer.setData("application/x-virel-asset", ref.assetId)
           }
         >
-          <Thumbnail assetId={ref.assetId} type={ref.type} studio={studio} />
+          <ReferenceThumbnail
+            assetId={ref.assetId}
+            type={ref.type}
+            studio={studio}
+          />
           <div>
             <strong>
               {studio.assets?.find((asset) => asset._id === ref.assetId)

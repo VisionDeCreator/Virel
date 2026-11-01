@@ -1,10 +1,11 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { Tabs } from "expo-router";
+import { Tabs, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { BackendProvider } from "@virel/api-client/provider";
 import { colors } from "@virel/design-tokens";
 import { client, authStorage } from "../src/lib/backend";
 function Navigation() {
+  const router = useRouter();
   return (
     <>
       <StatusBar style="light" />
@@ -46,9 +47,33 @@ function Navigation() {
       >
         <Tabs.Screen name="index" options={{ title: "Home" }} />
         <Tabs.Screen name="explore" options={{ title: "Explore" }} />
-        <Tabs.Screen name="create" options={{ title: "Create" }} />
+        <Tabs.Screen
+          name="create"
+          options={{ title: "Create" }}
+          listeners={{
+            tabPress: (event) => {
+              event.preventDefault();
+              router.navigate("/create");
+              router.setParams({
+                view: undefined,
+                job: undefined,
+                source: undefined,
+                asset: undefined,
+                retry: undefined,
+              });
+            },
+          }}
+        />
         <Tabs.Screen name="activity" options={{ title: "Activity" }} />
         <Tabs.Screen name="profile" options={{ title: "Profile" }} />
+        <Tabs.Screen
+          name="u/[username]"
+          options={{ href: null, title: "Profile" }}
+        />
+        <Tabs.Screen
+          name="settings"
+          options={{ title: "Settings", href: null }}
+        />
       </Tabs>
     </>
   );

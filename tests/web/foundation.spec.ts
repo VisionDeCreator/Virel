@@ -17,7 +17,11 @@ test("representative screens remain usable without a configured backend", async 
   await expect(page.getByRole("textbox", { name: "Username" })).toBeDisabled();
   await page.getByRole("link", { name: "Create", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Make something worth remixing." }),
+    page.getByRole("heading", { name: "Your creations" }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: /Create a video/ }).click();
+  await expect(
+    page.getByRole("heading", { name: "Create a video" }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Create video", exact: true }),
@@ -31,20 +35,18 @@ test("representative screens remain usable without a configured backend", async 
     "A cinematic desert scene",
   );
   await expect(page.getByText("Model: Seedance 2.5")).toBeVisible();
-  await expect(
-    page.getByText("Optional images or reference video", { exact: true }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Remix", exact: true }).click();
-  await expect(
-    page.getByRole("textbox", { name: "What would you change?" }),
-  ).toHaveValue("");
   await page
-    .getByRole("textbox", { name: "What would you change?" })
-    .fill("A remix draft");
-  await page.getByRole("button", { name: "Create", exact: true }).click();
+    .getByText("References · optional for Create", { exact: true })
+    .click();
   await expect(
-    page.getByRole("textbox", { name: "Script", exact: true }),
-  ).toHaveValue("A cinematic desert scene");
+    page.getByText("Optional image references", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Choose a platform video" }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Remix", exact: true }),
+  ).toHaveCount(0);
   const button = page.getByRole("button", {
     name: "Create video",
     exact: true,
@@ -66,7 +68,7 @@ test("representative screens remain usable without a configured backend", async 
 test("representative routes support direct loads without horizontal overflow", async ({
   page,
 }) => {
-  for (const path of ["/", "/profile", "/create"]) {
+  for (const path of ["/", "/profile", "/create", "/settings?tab=credits"]) {
     await page.goto(path);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     expect(
@@ -82,13 +84,40 @@ test("representative routes support direct loads without horizontal overflow", a
 });
 
 test("image input rejects unsupported files", async ({ page }) => {
-  await page.goto("/create");
+  await page.goto("/create?view=new");
+  await page
+    .getByText("References · optional for Create", { exact: true })
+    .click();
   await page.locator('input[type="file"]').setInputFiles({
     name: "invalid.txt",
     mimeType: "text/plain",
     buffer: Buffer.from("not an image"),
   });
   await expect(page.getByRole("alert")).toHaveText(
-    "Choose a JPG, PNG, WebP, MP4, MOV, or WebM file.",
+    "Choose a JPG, PNG, or WebP image under 10 MB.",
   );
+});
+
+test("creation designs remain readable on desktop and mobile", async ({
+  page,
+}, testInfo) => {
+  await page.goto("/create");
+  await expect(
+    page.getByRole("heading", { name: "Your creations" }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: `/tmp/virel-library-${testInfo.project.name}.png`,
+    fullPage: true,
+  });
+  await page.getByRole("link", { name: /Create a video/ }).click();
+  await expect(page.getByRole("textbox", { name: "Script" })).toBeVisible();
+  await page.screenshot({
+    path: `/tmp/virel-editor-${testInfo.project.name}.png`,
+    fullPage: true,
+  });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
 });

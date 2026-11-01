@@ -1,83 +1,12 @@
-import { Text, View, Image, AppState } from "react-native";
-import { useVideoPlayer, VideoView } from "expo-video";
-import { api, usePaginatedQuery } from "@virel/api-client";
-import { useEffect, useCallback } from "react";
-import { useFocusEffect } from "expo-router";
+import { Text, Image } from "react-native";
 import { Link } from "expo-router";
 import { colors } from "@virel/design-tokens";
-import { Button } from "@virel/ui-native";
 import { Screen, styles } from "../src/components/Screen";
 import { client } from "../src/lib/backend";
-function Clip({ url }: { url: string }) {
-  const player = useVideoPlayer(url, (p) => {
-    p.loop = true;
-    p.muted = true;
-  });
-  useFocusEffect(useCallback(() => () => player.pause(), [player]));
-  useEffect(() => {
-    const subscription = AppState.addEventListener("change", (state) => {
-      if (state !== "active") player.pause();
-    });
-    return () => subscription.remove();
-  }, [player]);
-  return (
-    <VideoView
-      player={player}
-      style={{ width: "100%", aspectRatio: 9 / 16, borderRadius: 20 }}
-      nativeControls
-    />
-  );
-}
-function Feed() {
-  const { results, status, loadMore } = usePaginatedQuery(
-    api.feed.list,
-    {},
-    { initialNumItems: 5 },
-  );
-  return (
-    <Screen title="For you">
-      {status === "LoadingFirstPage" ? (
-        <Text style={styles.text}>Loading your feed…</Text>
-      ) : !results.length ? (
-        <Text style={styles.text}>
-          No published videos yet. Your shared feed will appear here.
-        </Text>
-      ) : (
-        results.map((video) => (
-          <View key={video._id} style={{ gap: 12 }}>
-            <Clip url={video.playbackUrl} />
-            <Text style={styles.label}>
-              @{video.creator?.username ?? "creator"} · {video.title}
-            </Text>
-            {video.rootCreator && (
-              <Text style={styles.text}>
-                Original by @{video.rootCreator.username}
-                {video.parentCreator &&
-                video.parentCreator._id !== video.rootCreator._id
-                  ? ` · Remixed from @${video.parentCreator.username}`
-                  : ""}
-              </Text>
-            )}
-            {video.remixEnabled && (
-              <Link
-                href={{ pathname: "/create", params: { source: video._id } }}
-                style={{ color: colors.primary }}
-              >
-                Remix video →
-              </Link>
-            )}
-          </View>
-        ))
-      )}
-      {status === "CanLoadMore" && (
-        <Button title="Load more" onPress={() => loadMore(5)} />
-      )}
-    </Screen>
-  );
-}
+import { HomeFeed } from "../src/features/feed/HomeFeed";
 export default function Home() {
   return client ? (
-    <Feed />
+    <HomeFeed />
   ) : (
     <Screen title="Find your next what if.">
       <Text style={styles.text}>

@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
   type Dispatch,
@@ -212,9 +213,10 @@ export function useStudioScripts(
       });
     return saving.current;
   }
+  const draftKey = useMemo(() => payloadKey(input, title), [input, title]);
   useEffect(() => {
     if (!segmentId || hydrated.current !== segmentId) return;
-    if (payloadKey(input, title) === savedKey.current) return;
+    if (draftKey === savedKey.current) return;
     setStatus("Unsaved changes");
     if (storage)
       void Promise.resolve()
@@ -229,7 +231,7 @@ export function useStudioScripts(
       void flush().catch(() => {});
     }, 700);
     return () => clearTimeout(timer);
-  }, [input, title, segmentId, save]);
+  }, [draftKey, segmentId, save]);
   async function switchMode(next: "create" | "remix") {
     if (next === mode) return;
     await flush();

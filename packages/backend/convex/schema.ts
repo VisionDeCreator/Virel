@@ -204,15 +204,59 @@ export default defineSchema({
     usdMicros: v.number(),
     status: v.literal("pending"),
   }).index("by_jobId", ["jobId"]),
+  follows: defineTable({
+    followerId: v.id("users"),
+    followingId: v.id("users"),
+  }).index("by_follower_and_following", ["followerId", "followingId"]),
   profiles: defineTable({
     userId: v.id("users"),
     username: v.string(),
     displayName: v.string(),
     bio: v.string(),
+    avatarAssetId: v.optional(v.id("mediaAssets")),
+    avatarVersion: v.optional(v.number()),
+    followerCount: v.optional(v.number()),
+    followingCount: v.optional(v.number()),
   })
     .index("by_user", ["userId"])
     .index("by_username", ["username"]),
+  postReactions: defineTable({
+    userId: v.id("users"),
+    videoId: v.id("videos"),
+    kind: v.union(
+      v.literal("like"),
+      v.literal("bookmark"),
+      v.literal("dismiss"),
+    ),
+  })
+    .index("by_userId_and_videoId_and_kind", ["userId", "videoId", "kind"])
+    .index("by_userId_and_kind", ["userId", "kind"])
+    .index("by_userId", ["userId"]),
+  postComments: defineTable({
+    userId: v.id("users"),
+    videoId: v.id("videos"),
+    body: v.string(),
+    parentId: v.optional(v.id("postComments")),
+    deleted: v.optional(v.boolean()),
+  }).index("by_videoId", ["videoId"]),
+  postReports: defineTable({
+    userId: v.id("users"),
+    videoId: v.id("videos"),
+    reason: v.string(),
+  }).index("by_userId_and_videoId", ["userId", "videoId"]),
+  videoSignals: defineTable({
+    userId: v.id("users"),
+    videoId: v.id("videos"),
+    creatorId: v.id("users"),
+    completion: v.number(),
+    deliberate: v.boolean(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId_and_videoId", ["userId", "videoId"])
+    .index("by_userId_and_updatedAt", ["userId", "updatedAt"]),
   videos: defineTable({
+    likeCount: v.optional(v.number()),
+    commentCount: v.optional(v.number()),
     creatorId: v.id("users"),
     assetId: v.optional(v.id("mediaAssets")),
     jobId: v.optional(v.id("generationJobs")),

@@ -9,3 +9,11 @@ export const publishedUrl = internalAction({
     return asset ? await readUrl(asset.key, undefined, 300) : null;
   },
 });
+
+export const avatarUrl = internalAction({
+  args: { username: v.string() },
+  handler: async (ctx, args): Promise<string | null> => {
+    const asset = await ctx.runQuery(internal.profiles.avatar, args);
+    return asset ? await readUrl(asset.key, undefined, 300) : null;
+  },
+});

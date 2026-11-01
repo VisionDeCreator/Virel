@@ -38,9 +38,12 @@ export async function resolveInput(
   if (videoId) {
     if (
       !parent ||
-      parent.visibility !== "public" ||
-      parent.status !== "published" ||
-      !parent.remixEnabled ||
+      !(
+        parent.creatorId === userId ||
+        (parent.visibility === "public" &&
+          parent.status === "published" &&
+          parent.remixEnabled)
+      ) ||
       !parent.assetId
     )
       throw new Error("This video is not available for remixing.");
@@ -79,6 +82,14 @@ export async function resolveInput(
         .unique();
       if (job?.videoId) parent = await ctx.db.get(job.videoId);
     }
+  }
+  if (input.mode === "remix" && (!source || (!source.generated && !parent)))
+    throw new Error(
+      "Choose an existing platform video as the remix base. Uploaded files cannot be remix bases.",
+    );
+  if (input.mode === "remix" && source?.width && source.height) {
+    const ratio = source.width / source.height;
+    input.aspectRatio = ratio > 1.2 ? "16:9" : ratio < 0.8 ? "9:16" : "1:1";
   }
   if (videoAssetId && !source)
     throw new Error("Video reference is unavailable.");
